@@ -25,7 +25,7 @@
 <section id="saved"><div class="section-head"><div><h2>저장한 X·Reddit 글</h2><p>화면 확인용 예시 · 실제 게시물 수집 전</p></div><label>출처 <select id="platform"><option value="all">전체</option><option>X</option><option>Reddit</option></select></label></div><div id="feed" tabindex="0" role="region" aria-label="저장한 글 스크롤"></div></section>
 </main>
 <script>
-const {summary, events, sessions, reference, windows, relative_volume_pass, pressure_pass, buy_share_among_volume_pass, tight_mid_among_volume_pass, filter_avoided_loss, filter_missed_profit, market_filter_dates, weak_market_minutes, market_avoided_loss, market_missed_profit, orb_selections} = __REPLAY_DATA__;
+const {summary, events, sessions, reference, windows, relative_volume_pass, pressure_pass, buy_share_among_volume_pass, tight_mid_among_volume_pass, filter_avoided_loss, filter_missed_profit, market_filter_dates, weak_market_minutes, market_avoided_loss, market_missed_profit, orb_selections, orb_market_avoided_loss, orb_market_missed_profit} = __REPLAY_DATA__;
 const posts = [
   {platform:"X", time:"11-06 09:49", title:"돌파 직전에 매수·매도 호가 차이가 벌어짐", symbol:"SIM_WIDE", text:"돌파가 보여도 호가 차이가 평소보다 크게 벌어진 구간에서는 예상 체결가를 다시 확인하자는 관찰."},
   {platform:"Reddit", time:"11-05 10:02", title:"여러 계정이 반복한 소문, 최초 출처는 어디?", symbol:"SIM_RUMOR", text:"문구가 거의 같은 게시물을 하나로 묶고 공시나 회사 발표로 확인할 수 있는지 살펴보자는 토론."},
@@ -34,7 +34,7 @@ const posts = [
 ];
 const byId = id => document.getElementById(id);
 const usd = new Intl.NumberFormat("en-US",{style:"currency",currency:"USD"});
-const reasons = {weak_market:"시장 약세",social_risk:"출처 미확인 루머",wide_spread:"매수·매도 호가 차이 확대",failed_breakout:"횡보 상단 아래로 복귀",time_limit:"최대 보유 시간 도달",unusable_quote:"사용할 수 없는 호가",daily_loss_limit:"일일 손실 한도"};
+const reasons = {weak_market:"시장 약세",social_risk:"출처 미확인 루머",wide_spread:"매수·매도 호가 차이 확대",failed_breakout:"횡보 상단 아래로 복귀",time_limit:"최대 보유 시간 도달",unusable_quote:"사용할 수 없는 호가",daily_loss_limit:"일일 손실 한도",breakout_reversed:"진입 직전 기준선 아래로 복귀",insufficient_budget:"1회 한도 $1,000로 1주도 못 삼"};
 const time = event => event.time.slice(5,16).replace("T"," ");
 function element(tag,text,className){
   const node=document.createElement(tag);
@@ -107,6 +107,7 @@ if (sessions) {
   if (orb_selections) byId("historical-notes").textContent += " · ORB 후보(개장 5분 상대 거래량 상위 3, 양봉) " +
     orb_selections.reduce((total,item)=>total+item.symbols.length,0) + "건 / " + orb_selections.length + "일";
   if (summary[0].fills && marketDates.length) byId("historical-notes").textContent += " · 시장 거부권으로 피한 손실 " + usd.format(market_avoided_loss) + ", 놓친 수익 " + usd.format(market_missed_profit);
+  if (orb_market_avoided_loss != null && summary.some(result=>result.variant==="orb" && result.fills)) byId("historical-notes").textContent += " · ORB에서 시장 거부권으로 피한 손실 " + usd.format(orb_market_avoided_loss) + ", 놓친 수익 " + usd.format(orb_market_missed_profit);
   rows("historical-summary",summary.map(result=>[names[result.variant],result.fills?usd.format(result.net_pnl):"—",result.fills?result.max_drawdown_pct.toFixed(3)+"%":"—",result.fills+"건"]),4,"결과 없음");
   byId("saved").hidden = true;
   document.querySelector("nav a[href=\"#saved\"]")?.remove();

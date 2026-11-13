@@ -15,9 +15,13 @@
 - ORB 비교 추가: `orb.py`의 `OpeningRangeScanner`(개장 5분 범위, 이전 거래일 대비 상대 거래량 1배 이상·양봉 상위 3종목, 범위 고가 위 마감 시 신호, 청산은 기존 PaperBot 규칙). 과거 시험에 `orb`, `orb_market_veto` 전략과 `orb_selections` 결과 추가. 합성 데이터로만 검증.
 - ITCH 서버의 .md5sum은 목록에는 있지만 404라서 `download-itch.sh`는 크기 + `gzip -t`로 검증한다.
 - 이 PC의 git 사용자 정보는 저장소 로컬 설정으로 넣었고 GitHub 로그인은 완료했다.
+- 다운로드가 커지는 문제의 원인은 TaskStop으로 멈춘 줄 알았던 이전 스크립트가 살아 있어 같은 파일에 동시에 쓴 것. `download-itch.sh`에 `download.lock` 잠금을 넣었다. 7일 모두 크기+gzip 검사 통과 후 추출 완료(`D:\us-stock-data\sessions`, `index`).
+- 2026-11-14 7일 실제 비교 실행(약 6분), 결과는 README "2019년 7일 실제 결과" 표. 돌파 3건·ORB 2건 거래, 모두 손실, 매수 압력 통과 0. AMZN·GOOG는 1회 한도 $1,000로 1주도 못 사서 신호가 막힌다(한도 변경은 사용자 결정).
 - 아직 반영 안 된 것: 개장·마감 경매 체결(Q 메시지) 제외, 사후 체결 취소 미반영, `Bar.halted`는 데이터에서 채우지 않음(정지 중에는 호가가 0이라 매수 불가로만 처리), 소셜 거부권은 과거 시험에 미적용, UTC 오프셋은 실행당 하나만 사용(표시는 거래소 현지시간이라 영향 없음).
 
 ## 다음 작업 순서
+
+1~3번은 2026-11-14에 완료(이 PC에는 데이터가 있음). 새 PC에서 재현할 때만 1번부터 한다.
 
 1. Git Bash 두 창에서 `sh scripts/download-itch.sh`와 `sh scripts/extract-itch.sh`를 실행한다(다른 드라이브면 두 스크립트의 `/d/us-stock-data` 경로를 바꾼다). 다운로드는 이어받기와 md5 검증을 한다. SPY·QQQ는 `index/`로 옮겨져 거래 대상에서 빠진다.
 2. `python dashboard.py --historical "D:\us-stock-data\sessions" --utc-offset=-5`로 비교를 돌리고 `historical-dashboard.html`을 커밋한다. 첫 날짜는 기준만 쌓으므로 6일이 평가된다.

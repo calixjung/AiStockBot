@@ -220,11 +220,13 @@ def run(folder, *, offset=-4, intraday_reference=False, index_folder=None):
     pressure_avoided, pressure_missed = compare(named["breakout"], named["breakout_with_pressure"])
     market_avoided, market_missed = (compare(named["breakout"], named["breakout_market_veto"])
                                      if covered else (None, None))
+    orb_avoided, orb_missed = compare(named["orb"], named["orb_market_veto"]) if covered else (None, None)
     return {"reference": "intraday" if intraday else "prior_sessions_same_minute",
             "filter_avoided_loss": pressure_avoided, "filter_missed_profit": pressure_missed,
             "market_filter_dates": covered, "weak_market_minutes": weak_minutes,
             "market_avoided_loss": market_avoided, "market_missed_profit": market_missed,
             "orb_selections": orb.selections,
+            "orb_market_avoided_loss": orb_avoided, "orb_market_missed_profit": orb_missed,
             "sessions": sessions, "windows": counts[0],
             "relative_volume_pass": counts[1], "pressure_pass": counts[2],
             "buy_share_among_volume_pass": counts[3],
