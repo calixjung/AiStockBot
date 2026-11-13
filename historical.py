@@ -23,6 +23,7 @@ def load_day(folder, symbol, session, offset, reference=None):
     mids = []
     checks = [0, 0, 0, 0]
     windows = 0
+    opening = None
 
     def process():
         nonlocal windows
@@ -86,16 +87,72 @@ def load_day(folder, symbol, session, offset, reference=None):
                 previous_quote = None
             if message[1] in {"4", "5"} and message[5] in {"-1", "0", "1"}:
                 trades.append((int(message[4]) / 10_000, int(message[3]), int(message[5])))
+                if opening is None:
+                    opening = trades[-1][0]
         if minute is not None:
             process()
-    return bars, daily_windows, (windows, *checks)
+    return bars, daily_windows, (windows, *checks), opening
 
 
-def run(folder, *, offset=-4, intraday_reference=False):
+def load_index(folder, session, offset):
+    """Last trade price and session VWAP at the end of each regular-session minute."""
+    base = datetime.combine(session, datetime.min.time(), timezone(timedelta(hours=offset)))
+    states = {}
+    value = volume = 0.0
+    last = None
+    minute = None
+    with (folder / "message.csv").open(newline="") as messages:
+        for message in csv.reader(messages):
+            event_minute = int(float(message[0]) // 60)
+            if not 570 <= event_minute < 960:
+                continue
+            if minute is not None and event_minute != minute and last is not None:
+                states[base + timedelta(minutes=minute + 1)] = (last, value / volume)
+            minute = event_minute
+            if message[1] in {"4", "5"}:
+                price, size = int(message[4]) / 10_000, int(message[3])
+                value += price * size
+                volume += size
+                last = price
+    if minute is not None and last is not None:
+        states[base + timedelta(minutes=minute + 1)] = (last, value / volume)
+    return states
+
+
+def market_states(index_folder, days, offset):
+    """SPY/QQQ below session VWAP per minute end, forward-filled; None where data is missing."""
+    states = {}
+    for day in days:
+        series = []
+        for symbol in ("SPY", "QQQ"):
+            path = index_folder / day.isoformat() / symbol if index_folder else None
+            series.append(load_index(path, day, offset) if path and (path / "message.csv").is_file() else None)
+        if None in series:
+            continue
+        latest = [None, None]
+        for timestamp in sorted(set(series[0]) | set(series[1])):
+            for position, data in enumerate(series):
+                if timestamp in data:
+                    last, vwap = data[timestamp]
+                    latest[position] = last < vwap
+            if None not in latest:
+                states[timestamp] = tuple(latest)
+    return states
+
+
+def compare(bots, base, other):
+    # Trades the base variant took and the other did not: what the extra filter avoided or missed.
+    taken = {(symbol, opened) for symbol, opened, _ in bots[other].trades}
+    skipped = [pnl for symbol, opened, pnl in bots[base].trades if (symbol, opened) not in taken]
+    return round(sum(min(pnl, 0) for pnl in skipped), 2), round(sum(max(pnl, 0) for pnl in skipped), 2)
+
+
+def run(folder, *, offset=-4, intraday_reference=False, index_folder=None):
     batches = defaultdict(list)
     references = defaultdict(lambda: defaultdict(list))
     counts = [0, 0, 0, 0, 0]
     sessions = []
+    openings = {}
     if (folder / "message.csv").is_file():
         inputs = [(date(2012, 6, 21), "AAPL", folder)]
         intraday = True
@@ -109,9 +166,10 @@ def run(folder, *, offset=-4, intraday_reference=False):
     if not inputs:
         raise ValueError("No data found. Expected YYYY-MM-DD/SYMBOL/message.csv and orderbook.csv.")
     for session, symbol, path in inputs:
-        bars, windows, stats = load_day(
+        bars, windows, stats, opening = load_day(
             path, symbol, session, offset, None if intraday else references[symbol]
         )
+        openings[session, symbol] = opening
         sessions.append({"date": session.isoformat(), "symbol": symbol, "bars": len(bars),
                          "evaluated_windows": stats[0]})
         for minute, window in windows.items():
@@ -120,23 +178,43 @@ def run(folder, *, offset=-4, intraday_reference=False):
             batches[bar.time].append(bar)
         counts = [total + value for total, value in zip(counts, stats)]
 
-    market = Market(False, False, 0)
+    days = sorted({session for session, _, _ in inputs})
+    if index_folder is None and folder.name == "sessions" and (folder.parent / "index").is_dir():
+        index_folder = folder.parent / "index"
+    states = market_states(index_folder, days, offset)
+    covered = sorted({timestamp.date().isoformat() for timestamp in states})
     bots = [PaperBot("breakout"), PaperBot("breakout_with_pressure")]
+    if covered:
+        bots += [PaperBot("breakout_market_veto", market_filter=True),
+                 PaperBot("pressure_market_veto", market_filter=True)]
     scanners = [Scanner(), Scanner(require_pressure=True)]
-    for _, bars in sorted(batches.items()):
-        for scanner, bot in zip(scanners, bots):
-            signals = {}
+    closes = {}
+    weak_minutes = 0
+    for timestamp, bars in sorted(batches.items()):
+        for bar in bars:
+            closes[timestamp.date(), bar.symbol] = bar.close
+        # Declining = last price below the session's first regular trade, among symbols traded so far.
+        traded = [close < openings[session, symbol]
+                  for (session, symbol), close in closes.items() if session == timestamp.date()]
+        spy_weak, qqq_weak = states.get(timestamp, (False, False))
+        market = Market(spy_weak, qqq_weak, sum(traded) / len(traded))
+        weak_minutes += market.buy_veto() is not None and timestamp in states
+        signals = []
+        for scanner in scanners:
+            found = {}
             for bar in bars:
                 signal = scanner.update(bar)
                 if signal:
-                    signals[bar.symbol] = signal
-            bot.step(bars, market, signals)
-    # Breakout trades the pressure variant did not take: their PnL is what the filter avoided or missed.
-    taken = {(symbol, opened) for symbol, opened, _ in bots[1].trades}
-    skipped = [pnl for symbol, opened, pnl in bots[0].trades if (symbol, opened) not in taken]
+                    found[bar.symbol] = signal
+            signals.append(found)
+        for position, bot in enumerate(bots):
+            bot.step(bars, market, signals[position % 2])
+    pressure_avoided, pressure_missed = compare(bots, 0, 1)
+    market_avoided, market_missed = compare(bots, 0, 2) if covered else (None, None)
     return {"reference": "intraday" if intraday else "prior_sessions_same_minute",
-            "filter_avoided_loss": round(sum(min(pnl, 0) for pnl in skipped), 2),
-            "filter_missed_profit": round(sum(max(pnl, 0) for pnl in skipped), 2),
+            "filter_avoided_loss": pressure_avoided, "filter_missed_profit": pressure_missed,
+            "market_filter_dates": covered, "weak_market_minutes": weak_minutes,
+            "market_avoided_loss": market_avoided, "market_missed_profit": market_missed,
             "sessions": sessions, "windows": counts[0],
             "relative_volume_pass": counts[1], "pressure_pass": counts[2],
             "buy_share_among_volume_pass": counts[3],
@@ -153,8 +231,11 @@ if __name__ == "__main__":
                         help="Offset for the input dates; group standard and daylight time separately.")
     parser.add_argument("--intraday-reference", action="store_true",
                         help="Smoke test using earlier non-overlapping windows on the same day.")
+    parser.add_argument("--index", type=Path,
+                        help="YYYY-MM-DD/SPY|QQQ folder for the market veto (default: ../index next to sessions)")
     args = parser.parse_args()
-    print(json.dumps(run(args.folder, offset=args.utc_offset, intraday_reference=args.intraday_reference), indent=2))
+    print(json.dumps(run(args.folder, offset=args.utc_offset, intraday_reference=args.intraday_reference,
+                         index_folder=args.index), indent=2))
 
 
 

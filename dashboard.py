@@ -19,13 +19,15 @@ def main():
     parser.add_argument("--historical", type=Path, help="LOBSTER data folder")
     parser.add_argument("--intraday-reference", action="store_true")
     parser.add_argument("--utc-offset", type=int, choices=(-5, -4), default=-4)
+    parser.add_argument("--index", type=Path, help="SPY/QQQ folder for the market veto")
     args = parser.parse_args()
 
     log = io.StringIO()
     with redirect_stdout(log):
         if args.historical:
             report = run_historical(args.historical, offset=args.utc_offset,
-                                    intraday_reference=args.intraday_reference)
+                                    intraday_reference=args.intraday_reference,
+                                    index_folder=args.index)
         else:
             report = {"summary": replay()}
     events = [json.loads(line) for line in log.getvalue().splitlines()]

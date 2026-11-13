@@ -10,11 +10,13 @@
 - 회사 PC에서 12302019 파일을 1.9 GB까지 받다가 중단. 속도 1.7~5.7 MB/s. 순수 Python 추출기의 패킷 읽기 속도는 약 45만 개/초라 하루(약 2.5억 패킷) 추출에 15~20분이 든다.
 - 추가한 코드: `PaperBot.trades`에 체결별 손익 기록, `historical.run` 결과에 `filter_avoided_loss`(돌파만 체결한 거래의 손실 합)·`filter_missed_profit`(같은 거래의 이익 합), 대시보드 과거 시험 문구에 표시. 실제 데이터로는 아직 실행하지 못했다.
 - 구현과 프롬프트 설명 비교: 15분 범위·거래량 3배·거래대금 100만 달러로 횡보 설정, 10분 안에 두 분봉 연속 상단 위 마감이면 신호, 다음 분봉 종가가 상단 위일 때 그 분봉의 매도호가에 체결, 상단 아래 마감 또는 30분 보유면 다음 분봉 매수호가에 청산. 여러 날짜 모드의 기준은 이전 거래일 같은 15분 구간의 중앙값만 쓰므로 미래 정보는 쓰지 않는다. 체결 방향은 ITCH 표시 주문 체결의 반대편(LOBSTER 규약과 동일)이며 비표시 체결은 방향 미상으로 거래량에만 들어간다.
-- 아직 반영 안 된 것: 개장·마감 경매 체결(Q 메시지) 제외, 사후 체결 취소 미반영, `Bar.halted`는 데이터에서 채우지 않음(정지 중에는 호가가 0이라 매수 불가로만 처리), 시장·소셜 거부권은 과거 시험에 미적용, UTC 오프셋은 실행당 하나만 사용(표시는 거래소 현지시간이라 영향 없음).
+- 같은 날 저녁 집 PC: Python 3.12.10을 winget으로 사용자 범위 설치(`C:\Users\artso\AppData\Local\Programs\Python\Python312`, 기존 셸은 PATH 미반영). 다운로드 약 12 MB/s. 다운로드·추출 스크립트를 백그라운드로 시작했다.
+- 시장 거부권을 과거 시험에 연결: `historical.run`이 `sessions` 옆 `index/`(또는 `--index`)의 SPY·QQQ로 분마다 VWAP 아래 여부와 거래 대상 중 당일 첫 체결가 아래 비율을 계산해 `Market`에 넣고, `breakout_market_veto`·`pressure_market_veto` 전략을 추가한다. 결과 키 `market_filter_dates`, `weak_market_minutes`, `market_avoided_loss`, `market_missed_profit`. 합성 3일 데이터로만 검증했다.
+- 아직 반영 안 된 것: 개장·마감 경매 체결(Q 메시지) 제외, 사후 체결 취소 미반영, `Bar.halted`는 데이터에서 채우지 않음(정지 중에는 호가가 0이라 매수 불가로만 처리), 소셜 거부권은 과거 시험에 미적용, UTC 오프셋은 실행당 하나만 사용(표시는 거래소 현지시간이라 영향 없음).
 
 ## 다음 작업 순서
 
 1. Git Bash 두 창에서 `sh scripts/download-itch.sh`와 `sh scripts/extract-itch.sh`를 실행한다(다른 드라이브면 두 스크립트의 `/d/us-stock-data` 경로를 바꾼다). 다운로드는 이어받기와 md5 검증을 한다. SPY·QQQ는 `index/`로 옮겨져 거래 대상에서 빠진다.
 2. `python dashboard.py --historical "D:\us-stock-data\sessions" --utc-offset=-5`로 비교를 돌리고 `historical-dashboard.html`을 커밋한다. 첫 날짜는 기준만 쌓으므로 6일이 평가된다.
-3. 거래 수, 순손익, 이익·손실 합, 최대 낙폭, 필터로 피한 손실·놓친 수익을 README에 기록한다. 거래가 적으면 그대로 표시하고 기준을 표본에 맞춰 낮추지 않는다.
-4. 그다음: `index/`의 SPY·QQQ로 시장 거부권 검증, 실시간 모의매매, X·Reddit 실제 저장과 DeepSeek 분석(후보 종목 한정), ORB 전략 비교.
+3. 거래 수, 순손익, 이익·손실 합, 최대 낙폭, 필터(매수 압력·시장 거부권)로 피한 손실·놓친 수익을 README에 기록한다. 거래가 적으면 그대로 표시하고 기준을 표본에 맞춰 낮추지 않는다.
+4. 그다음: 실시간 모의매매, X·Reddit 실제 저장과 DeepSeek 분석(후보 종목 한정), ORB 전략 비교.
