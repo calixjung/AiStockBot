@@ -3,7 +3,11 @@
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 import json
+
 from pressure import PressureWindow, stalled_buying
+
+# Largest amount one paper buy may spend, fee included (raised from $1,000 so AMZN can be bought).
+TRADE_BUDGET = 2_500
 
 
 @dataclass(frozen=True)
@@ -192,7 +196,7 @@ class PaperBot:
                 self.log(bar, "buy_veto", reason=reason or "breakout_reversed")
                 continue
             price = bar.ask * 1.0001
-            quantity = int(max(0, min(self.cash, 1_000) - 1.0) / price)
+            quantity = int(max(0, min(self.cash, TRADE_BUDGET) - 1.0) / price)
             if not quantity:
                 self.log(bar, "buy_veto", reason="insufficient_budget")
                 continue
