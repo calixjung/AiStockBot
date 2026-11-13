@@ -8,6 +8,7 @@ from pathlib import Path
 from statistics import median
 
 from bot import Bar, Market, PaperBot, Scanner
+from orb import OpeningRangeScanner
 from pressure import PressureWindow, stalled_buying
 
 
@@ -140,10 +141,10 @@ def market_states(index_folder, days, offset):
     return states
 
 
-def compare(bots, base, other):
+def compare(base, other):
     # Trades the base variant took and the other did not: what the extra filter avoided or missed.
-    taken = {(symbol, opened) for symbol, opened, _ in bots[other].trades}
-    skipped = [pnl for symbol, opened, pnl in bots[base].trades if (symbol, opened) not in taken]
+    taken = {(symbol, opened) for symbol, opened, _ in other.trades}
+    skipped = [pnl for symbol, opened, pnl in base.trades if (symbol, opened) not in taken]
     return round(sum(min(pnl, 0) for pnl in skipped), 2), round(sum(max(pnl, 0) for pnl in skipped), 2)
 
 
@@ -183,11 +184,17 @@ def run(folder, *, offset=-4, intraday_reference=False, index_folder=None):
         index_folder = folder.parent / "index"
     states = market_states(index_folder, days, offset)
     covered = sorted({timestamp.date().isoformat() for timestamp in states})
-    bots = [PaperBot("breakout"), PaperBot("breakout_with_pressure")]
+    # (variant, signal source, market veto); signal sources: 0 breakout, 1 breakout+pressure, 2 ORB.
+    variants = [("breakout", 0, False), ("breakout_with_pressure", 1, False)]
     if covered:
-        bots += [PaperBot("breakout_market_veto", market_filter=True),
-                 PaperBot("pressure_market_veto", market_filter=True)]
+        variants += [("breakout_market_veto", 0, True), ("pressure_market_veto", 1, True)]
+    variants.append(("orb", 2, False))
+    if covered:
+        variants.append(("orb_market_veto", 2, True))
+    bots = [PaperBot(name, market_filter=veto) for name, _, veto in variants]
+    named = {bot.name: bot for bot in bots}
     scanners = [Scanner(), Scanner(require_pressure=True)]
+    orb = OpeningRangeScanner(openings)
     closes = {}
     weak_minutes = 0
     for timestamp, bars in sorted(batches.items()):
@@ -207,14 +214,17 @@ def run(folder, *, offset=-4, intraday_reference=False, index_folder=None):
                 if signal:
                     found[bar.symbol] = signal
             signals.append(found)
-        for position, bot in enumerate(bots):
-            bot.step(bars, market, signals[position % 2])
-    pressure_avoided, pressure_missed = compare(bots, 0, 1)
-    market_avoided, market_missed = compare(bots, 0, 2) if covered else (None, None)
+        signals.append(orb.update(bars))
+        for (_, source, _), bot in zip(variants, bots):
+            bot.step(bars, market, signals[source])
+    pressure_avoided, pressure_missed = compare(named["breakout"], named["breakout_with_pressure"])
+    market_avoided, market_missed = (compare(named["breakout"], named["breakout_market_veto"])
+                                     if covered else (None, None))
     return {"reference": "intraday" if intraday else "prior_sessions_same_minute",
             "filter_avoided_loss": pressure_avoided, "filter_missed_profit": pressure_missed,
             "market_filter_dates": covered, "weak_market_minutes": weak_minutes,
             "market_avoided_loss": market_avoided, "market_missed_profit": market_missed,
+            "orb_selections": orb.selections,
             "sessions": sessions, "windows": counts[0],
             "relative_volume_pass": counts[1], "pressure_pass": counts[2],
             "buy_share_among_volume_pass": counts[3],
