@@ -62,6 +62,26 @@ python dashboard.py --historical "C:\path\to\data"
 
 한 날짜만 있고 당일 비교로 입력을 점검하려면 `--intraday-reference`를 추가합니다. 기본 실행 파일은 기존 가상 시세 대시보드를 엽니다.
 
+## 여러 거래일 원본 확보 (2019년 공개 샘플 7일)
+
+나스닥 공개 샘플 중 ITCH 5.0 전체 하루 파일이 있는 날짜는 2019-01-30, 03-27, 07-30, 08-30, 10-18, 10-30, 12-30이며 파일당 3.5~5.5 GB(총 약 25 GB)입니다. 실측 다운로드 속도는 1.7~5.7 MB/s였습니다. 두 스크립트는 Git Bash에서 실행하며, 원본은 `D:\us-stock-data\itch`, 추출 결과는 `D:\us-stock-data\sessions`(거래 대상 10종목)와 `D:\us-stock-data\index`(SPY·QQQ, 시장 필터용)에 쌓입니다. 다른 드라이브를 쓰려면 두 스크립트 안의 경로를 바꿉니다. 다운로드는 중단 후 다시 실행하면 이어받고 md5로 검증합니다.
+
+```bash
+sh scripts/download-itch.sh
+```
+
+```bash
+sh scripts/extract-itch.sh
+```
+
+두 스크립트를 동시에 띄워 두면 검증이 끝난 파일부터 추출합니다. 하루 추출은 순수 Python이라 15~20분쯤 걸립니다. 추출이 끝나면 아래 명령으로 비교와 대시보드를 만듭니다. 첫 날짜는 기준만 쌓고 나머지 6일을 평가합니다.
+
+```powershell
+python dashboard.py --historical "D:\us-stock-data\sessions" --utc-offset=-5 --no-open
+```
+
+결과의 `filter_avoided_loss`·`filter_missed_profit`는 돌파 전략이 체결했지만 매수 압력 전략은 거른 거래의 손실 합과 이익 합입니다. 날짜가 표준시·서머타임에 걸쳐 있지만 ITCH 시각은 거래소 현지시간이라 화면 표시는 영향이 없습니다.
+
 ## 나스닥 ITCH 원본에서 종목 추출
 
 공식 샘플 https://emi.nasdaq.com/ITCH/Nasdaq%20ITCH/ 에서 받은 ITCH 5.0 gzip 파일을 지정합니다. 날짜별로 반복하고 같은 출력 폴더를 사용합니다. 완성된 날짜 폴더가 이미 있으면 덮어쓰지 않습니다.
