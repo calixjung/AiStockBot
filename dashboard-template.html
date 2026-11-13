@@ -1,0 +1,121 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>미국주식 모의매매</title>
+<style>
+*{box-sizing:border-box}body{margin:0;background:#0c121d;color:#e6edf7;font:15px/1.55 Inter,"Malgun Gothic",sans-serif}a{color:#a8c6ff}header{border-bottom:1px solid #283549;background:#101926}header div,main{max-width:1150px;margin:auto;padding:18px 24px}header div{display:flex;gap:20px;align-items:center;flex-wrap:wrap}nav{display:flex;gap:18px}nav a{text-decoration:none}h1{font-size:32px;margin:0}h2{font-size:20px;margin:0 0 12px}p{margin:5px 0;color:#aebcd0}.top{display:flex;align-items:end;justify-content:space-between;gap:16px;flex-wrap:wrap}.badge{color:#fbd38c}.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(155px,1fr));gap:12px;margin:22px 0}.card,section{background:#131e2e;border:1px solid #283549;border-radius:14px;padding:17px}section{margin-bottom:18px;scroll-margin-top:12px}.card span,small,th{color:#aebcd0}.card strong{display:block;font-size:25px;margin-top:5px}.gain{color:#72e2b1}.loss{color:#ff9da6}.table-wrap{overflow:auto}table{border-collapse:collapse;width:100%;text-align:left}th,td{padding:11px 9px;border-bottom:1px solid #283549;white-space:nowrap}tr:last-child td{border-bottom:0}.section-head{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}select{background:#0c1523;color:#e6edf7;border:1px solid #435571;border-radius:8px;padding:8px;font:inherit}article{padding:14px 0;border-top:1px solid #283549}article h3{margin:5px 0;font-size:16px}article small{color:#a8c6ff}footer{color:#aebcd0;margin:15px 0}.social-tag{color:#a8c6ff} @media(max-width:520px){header div,main{padding:14px}h1{font-size:26px}}
+.scroll-panel{max-height:340px;overflow:auto;scrollbar-gutter:stable}.scroll-panel thead th{position:sticky;top:0;background:#131e2e}#feed{max-height:315px;overflow:auto;scrollbar-gutter:stable;padding-right:8px}
+</style>
+</head>
+<body>
+<header><div><strong>미국주식 모의매매</strong><nav aria-label="대시보드 메뉴"><a href="#trades">체결</a><a href="#vetoes">매수 차단</a><a href="#saved">저장한 글</a></nav></div></header>
+<main>
+<div class="top"><div><h1>거래 현황</h1><p id="replay-source"><span class="badge">가상 시세 리플레이</span> · 2026년 11월 3–9일 · 미국 동부시간</p></div>
+<label>전략 <select id="strategy"><option value="pressure_committee">위원회 + 매수 압력</option><option value="committee">분석위원회</option><option value="market_veto">돌파 + 시장 거부권</option><option value="breakout">돌파만</option></select></label></div>
+<section id="historical-results" hidden><h2>과거 데이터 시험</h2><p id="historical-notes"></p><div class="table-wrap"><table><thead><tr><th>전략</th><th>순손익</th><th>최대 낙폭</th><th>체결</th></tr></thead><tbody id="historical-summary"></tbody></table></div></section>
+<div class="cards" id="metrics" aria-live="polite"></div>
+<section><h2>보유 종목</h2><p id="positions"></p></section>
+<section id="trades"><div class="section-head"><h2>체결 내역</h2><label>구분 <select id="side"><option value="all">전체</option><option value="paper_buy">매수</option><option value="paper_sell">매도</option></select></label></div>
+<div class="table-wrap scroll-panel" tabindex="0" role="region" aria-label="체결 내역 스크롤"><table><thead><tr><th>일시</th><th>종목</th><th>구분</th><th>수량</th><th>체결가</th><th>실현손익</th><th>청산 사유</th></tr></thead><tbody id="trade-rows"></tbody></table></div></section>
+<section><h2>종목별 거래 횟수</h2><div class="table-wrap"><table><thead><tr><th>종목</th><th>매수</th><th>매도</th></tr></thead><tbody id="symbol-counts"></tbody></table></div></section>
+<section id="vetoes"><h2>위원회 매수 차단 기록</h2><div class="table-wrap"><table><thead><tr><th>일시</th><th>종목</th><th>차단 사유</th></tr></thead><tbody id="veto-rows"></tbody></table></div></section>
+<section><h2>매수 압력 감지 기록</h2><div class="table-wrap"><table><thead><tr><th>일시</th><th>종목</th><th>매수 주도 비중</th><th>압력 조건</th></tr></thead><tbody id="pressure-rows"></tbody></table></div></section>
+<section id="saved"><div class="section-head"><div><h2>저장한 X·Reddit 글</h2><p>화면 확인용 예시 · 실제 게시물 수집 전</p></div><label>출처 <select id="platform"><option value="all">전체</option><option>X</option><option>Reddit</option></select></label></div><div id="feed" tabindex="0" role="region" aria-label="저장한 글 스크롤"></div></section>
+</main>
+<script>
+const {summary, events, sessions, reference, windows, relative_volume_pass, pressure_pass, buy_share_among_volume_pass, tight_mid_among_volume_pass, filter_avoided_loss, filter_missed_profit} = __REPLAY_DATA__;
+const posts = [
+  {platform:"X", time:"11-06 09:49", title:"돌파 직전에 매수·매도 호가 차이가 벌어짐", symbol:"SIM_WIDE", text:"돌파가 보여도 호가 차이가 평소보다 크게 벌어진 구간에서는 예상 체결가를 다시 확인하자는 관찰."},
+  {platform:"Reddit", time:"11-05 10:02", title:"여러 계정이 반복한 소문, 최초 출처는 어디?", symbol:"SIM_RUMOR", text:"문구가 거의 같은 게시물을 하나로 묶고 공시나 회사 발표로 확인할 수 있는지 살펴보자는 토론."},
+  {platform:"X", time:"11-05 09:40", title:"매수 주도 체결이 늘었지만 가격은 횡보", symbol:"감지 아이디어", text:"체결 방향과 중간 호가를 같이 기록해 매도 물량이 계속 나오는 구간인지 확인."},
+  {platform:"Reddit", time:"11-04 09:55", title:"시장 약세일 때 개별 종목 돌파를 걸러보자", symbol:"시장 필터", text:"지수 두 개가 장중 VWAP을 밑돌 때 신규 진입을 막으면 놓친 수익과 피한 손실이 각각 얼마나 되는지 비교."}
+];
+const byId = id => document.getElementById(id);
+const usd = new Intl.NumberFormat("en-US",{style:"currency",currency:"USD"});
+const reasons = {weak_market:"시장 약세",social_risk:"출처 미확인 루머",wide_spread:"매수·매도 호가 차이 확대",failed_breakout:"횡보 상단 아래로 복귀",time_limit:"최대 보유 시간 도달",unusable_quote:"사용할 수 없는 호가",daily_loss_limit:"일일 손실 한도"};
+const time = event => event.time.slice(5,16).replace("T"," ");
+function element(tag,text,className){
+  const node=document.createElement(tag);
+  node.textContent=text;
+  if(className) node.className=className;
+  return node;
+}
+function row(values){const node=element("tr","");node.append(...values.map(value=>element("td",value)));return node}
+function rows(id,values,columns,empty){
+  const body=byId(id);
+  body.replaceChildren(...values.map(row));
+  if(!values.length){const placeholder=row([empty]);placeholder.firstChild.colSpan=columns;body.append(placeholder)}
+}
+function render(){
+  const strategy=byId("strategy").value;
+  const selection=events.filter(event=>event.variant===strategy);
+  const result=summary.find(item=>item.variant===strategy);
+  rows("pressure-rows",selection.filter(event=>event.event==="pressure_check").reverse().map(event=>[time(event),event.symbol,event.buy_share+"%",event.passed?"통과":"미달"]),4,sessions?"표시할 구간별 기록이 없습니다. 집계는 위의 과거 데이터 시험에 표시됩니다.":"이 전략은 매수 압력 조건을 사용하지 않습니다.");
+  const sold=selection.filter(event=>event.event==="paper_sell");
+  const profit=sold.reduce((total,event)=>total+Math.max(event.pnl,0),0);
+  const loss=sold.reduce((total,event)=>total+Math.min(event.pnl,0),0);
+  const metrics=[["계좌 평가액",result.equity],["순손익",result.net_pnl],["이익 합계",profit],["손실 합계",loss]];
+  byId("metrics").replaceChildren(...metrics.map(([label,value])=>{
+    const card=element("div","","card");
+    card.append(element("span",label),element("strong",usd.format(value),label==="계좌 평가액"?"":value<0?"loss":value>0?"gain":""));
+    return card;
+  }));
+  byId("positions").textContent=result.open_positions.join(", ")||"현재 보유 종목 0개";
+  const counts = new Map();
+  for (const event of selection) {
+    if (event.event !== "paper_buy" && event.event !== "paper_sell") continue;
+    if (!counts.has(event.symbol)) counts.set(event.symbol, {paper_buy:0,paper_sell:0});
+    counts.get(event.symbol)[event.event]++;
+  }
+  rows("symbol-counts", Array.from(counts).sort(([a],[b])=>a.localeCompare(b)).map(([symbol,count])=>[symbol,count.paper_buy+"회",count.paper_sell+"회"]),3,"체결된 종목이 없습니다.");
+  const side=byId("side").value;
+  const trades=selection.filter(event=>["paper_buy","paper_sell"].includes(event.event)&&(side==="all"||side===event.event)).reverse();
+  rows("trade-rows",trades.map(event=>[time(event),event.symbol,event.event==="paper_buy"?"매수":"매도",event.quantity==null?"—":event.quantity+"주",event.price==null?"—":usd.format(event.price),event.pnl==null?"—":usd.format(event.pnl),reasons[event.reason]??"—"]),7,"선택한 조건의 체결이 없습니다.");
+  rows("veto-rows",selection.filter(event=>event.event==="buy_veto").reverse().map(event=>[time(event),event.symbol,reasons[event.reason]??event.reason]),3,"매수 차단 기록이 없습니다.");
+}
+function renderFeed(){
+  const platform=byId("platform").value;
+  byId("feed").replaceChildren(...posts.filter(post=>platform==="all"||post.platform===platform).map(post=>{
+    const article=element("article","");
+    article.append(element("small",post.platform+" · "+post.time+" · "+post.symbol),element("h3",post.title),element("p",post.text));
+    return article;
+  }));
+}
+if (sessions) {
+  const names = {breakout:"거래량 급증 후 돌파", breakout_with_pressure:"돌파 + 매수 압력"};
+  const dates = [...new Set(sessions.map(item=>item.date))];
+  const symbols = [...new Set(sessions.map(item=>item.symbol))];
+  byId("replay-source").textContent = "실제 NASDAQ 체결·호가 · " + dates.join(", ") + " · " + symbols.join(", ");
+  byId("historical-results").hidden = false;
+  const basis = reference === "intraday" ? "당일 앞선 구간을 임시 기준으로 사용" : "이전 거래일의 같은 시간대가 기준";
+  const dataNote = windows ? "" : " · 기준 데이터 부족으로 평가 불가";
+  byId("historical-notes").textContent = basis + dataNote + " · 평가 " + windows.toLocaleString("ko-KR") + "개 · 거래량 3배 통과 " + relative_volume_pass + "개 · 매수 압력 통과 " + pressure_pass + "개 · 시장·소셜 필터 미적용";
+  if (relative_volume_pass > 0) {
+    byId("historical-notes").textContent += " · 거래량 통과 구간 중 매수 주도 70% 이상 " +
+      buy_share_among_volume_pass + "개, 중간 호가 범위 0.5% 이하 " + tight_mid_among_volume_pass + "개";
+  }
+  byId("strategy").replaceChildren(...summary.map(result=>{
+    const option = element("option",names[result.variant]);
+    option.value = result.variant;
+    return option;
+  }));
+  if (summary[0].fills) byId("historical-notes").textContent += " · 매수 압력 필터로 피한 손실 " + usd.format(filter_avoided_loss) + ", 놓친 수익 " + usd.format(filter_missed_profit);
+  rows("historical-summary",summary.map(result=>[names[result.variant],result.fills?usd.format(result.net_pnl):"—",result.fills?result.max_drawdown_pct.toFixed(3)+"%":"—",result.fills+"건"]),4,"결과 없음");
+  byId("saved").hidden = true;
+  document.querySelector("nav a[href=\"#saved\"]")?.remove();
+}
+byId("strategy").addEventListener("change",render);
+byId("side").addEventListener("change",render);
+byId("platform").addEventListener("change",renderFeed);
+render();
+renderFeed();
+</script>
+</body>
+</html>
+
+
+
+
+
