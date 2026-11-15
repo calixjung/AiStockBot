@@ -28,7 +28,8 @@ INDEX = ("SPY", "QQQ")
 STRATEGIES = [("breakout", "breakout", False, 30), ("breakout_market_veto", "breakout", True, 30),
               ("orb", "orb", False, 30),
               ("orb_market_veto", "orb", True, 30), ("absorption", "absorption", False, 60),
-              ("absorption_market_veto", "absorption", True, 60)]
+              ("absorption_market_veto", "absorption", True, 60),
+              ("orb_hold_to_close", "orb_to_close", False, 400)]
 
 
 class AutoStop:
@@ -61,7 +62,8 @@ class LiveSession:
         self.bots = [PaperBot(name, market_filter=veto, max_hold_minutes=hold, quiet=quiet)
                      for name, _, veto, hold in strategies]
         self.scanners = {"breakout": Scanner(), "orb": OpeningRangeScanner(self.openings),
-                         "absorption": AbsorptionScanner()}
+                         "absorption": AbsorptionScanner(),
+                         "orb_to_close": OpeningRangeScanner(self.openings, stop="low")}
         self.auto_stop = auto_stop
         self.notices = []
         self.day = None
@@ -158,7 +160,8 @@ class LiveSession:
                 self.closes[bar.symbol] = bar.close
             market = self._market(stamp)
             signals = {"breakout": {}, "orb": self.scanners["orb"].update(bars),
-                       "absorption": self.scanners["absorption"].update(bars)}
+                       "absorption": self.scanners["absorption"].update(bars),
+                       "orb_to_close": self.scanners["orb_to_close"].update(bars)}
             for bar in bars:
                 signal = self.scanners["breakout"].update(bar)
                 if signal:

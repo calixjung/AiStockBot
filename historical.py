@@ -240,12 +240,16 @@ def run(folder, *, offset=-4, intraday_reference=False, index_folder=None, rando
     variants.append(("absorption", 3, False))
     if covered:
         variants.append(("absorption_market_veto", 3, True))
-    bots = [PaperBot(name, market_filter=veto, max_hold_minutes=60 if source == 3 else 30)
+    # 4: ORB held until the 15:55 close-out unless a minute closes below the opening-range low.
+    variants.append(("orb_hold_to_close", 4, False))
+    hold = {3: 60, 4: 400}
+    bots = [PaperBot(name, market_filter=veto, max_hold_minutes=hold.get(source, 30))
             for name, source, veto in variants]
     named = {bot.name: bot for bot in bots}
     scanners = [Scanner(), Scanner(require_pressure=True)]
     orb = OpeningRangeScanner(openings)
     absorption = AbsorptionScanner()
+    orb_to_close = OpeningRangeScanner(openings, stop="low")
     randoms, random_scanners = random_bots(random_runs, days[1] if not intraday and len(days) > 1 else None)
     closes = {}
     weak_minutes = 0
@@ -268,6 +272,7 @@ def run(folder, *, offset=-4, intraday_reference=False, index_folder=None, rando
             signals.append(found)
         signals.append(orb.update(bars))
         signals.append(absorption.update(bars))
+        signals.append(orb_to_close.update(bars))
         for (_, source, _), bot in zip(variants, bots):
             bot.step(bars, market, signals[source])
         for bot, scanner in zip(randoms, random_scanners):

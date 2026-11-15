@@ -84,7 +84,7 @@ function renderFeed(){
   }));
 }
 if (sessions) {
-  const names = {breakout:"거래량 급증 후 돌파", breakout_with_pressure:"돌파 + 매수 압력", breakout_market_veto:"돌파 + 시장 거부권", pressure_market_veto:"돌파 + 매수 압력 + 시장 거부권", orb:"개장 범위 돌파(ORB)", orb_market_veto:"ORB + 시장 거부권", absorption:"대량 매수·가격 정체", absorption_market_veto:"대량 매수·가격 정체 + 시장 거부권"};
+  const names = {breakout:"거래량 급증 후 돌파", breakout_with_pressure:"돌파 + 매수 압력", breakout_market_veto:"돌파 + 시장 거부권", pressure_market_veto:"돌파 + 매수 압력 + 시장 거부권", orb:"개장 범위 돌파(ORB)", orb_market_veto:"ORB + 시장 거부권", absorption:"대량 매수·가격 정체", absorption_market_veto:"대량 매수·가격 정체 + 시장 거부권", orb_hold_to_close:"ORB 장 마감까지 보유"};
   const marketDates = market_filter_dates ?? [];
   const dates = [...new Set(sessions.map(item=>item.date))];
   const symbols = [...new Set(sessions.map(item=>item.symbol))];

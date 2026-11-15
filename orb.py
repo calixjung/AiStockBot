@@ -17,7 +17,10 @@ class OpeningRangeScanner:
       so PaperBot applies the same entry check and exits as the breakout strategies.
     """
 
-    def __init__(self, openings, *, minutes=5, top=3, min_relative=1.0):
+    def __init__(self, openings, *, minutes=5, top=3, min_relative=1.0, stop="high"):
+        # stop="high": exit floor is the range high (same exits as the breakout strategies);
+        # stop="low": floor is the range low, as in published ORB studies that hold until the close.
+        self.stop = stop
         self.openings = openings
         self.minutes = minutes
         self.top = top
@@ -31,15 +34,15 @@ class OpeningRangeScanner:
 
     def select(self):
         candidates = []
-        for symbol, (high, _, volume, close) in self.ranges.items():
+        for symbol, (high, low, volume, close) in self.ranges.items():
             earlier = self.history.get(symbol)
             opening = self.openings.get((self.session, symbol))
             if earlier and opening is not None and close > opening:
                 typical = median(earlier)
                 if typical and volume / typical >= self.min_relative:
-                    candidates.append((volume / typical, symbol, high))
+                    candidates.append((volume / typical, symbol, (high, low)))
         candidates.sort(reverse=True)
-        self.selected = {symbol: high for _, symbol, high in candidates[:self.top]}
+        self.selected = {symbol: levels for _, symbol, levels in candidates[:self.top]}
         self.selections.append({"date": self.session.isoformat(),
                                 "symbols": [[symbol, round(ratio, 2)] for ratio, symbol, _ in candidates[:self.top]]})
         # Today's volume joins the reference only after today's selection.
@@ -63,8 +66,8 @@ class OpeningRangeScanner:
         if self.selected is None:
             self.select()
         for bar in bars:
-            high = self.selected.get(bar.symbol)
-            if high is not None and bar.symbol not in self.fired and bar.close > high:
+            levels = self.selected.get(bar.symbol)
+            if levels is not None and bar.symbol not in self.fired and bar.close > levels[0]:
                 self.fired.add(bar.symbol)
-                signals[bar.symbol] = Signal(bar.symbol, high)
+                signals[bar.symbol] = Signal(bar.symbol, levels[0] if self.stop == "high" else levels[1])
         return signals
