@@ -30,7 +30,8 @@ STRATEGIES = [("breakout", "breakout", False, 30), ("breakout_market_veto", "bre
               ("orb", "orb", False, 30),
               ("orb_market_veto", "orb", True, 30), ("absorption", "absorption", False, 60),
               ("absorption_market_veto", "absorption", True, 60),
-              ("orb_hold_to_close", "orb_to_close", False, 400)]
+              ("orb_hold_to_close", "orb_to_close", False, 400),
+              ("orb_wide_to_close", "orb_wide", False, 400)]
 
 
 class AutoStop:
@@ -67,7 +68,8 @@ class LiveSession:
                      for name, _, veto, hold in strategies]
         self.scanners = {"breakout": Scanner(), "orb": OpeningRangeScanner(self.openings),
                          "absorption": AbsorptionScanner(),
-                         "orb_to_close": OpeningRangeScanner(self.openings, stop="low")}
+                         "orb_to_close": OpeningRangeScanner(self.openings, stop="low"),
+                         "orb_wide": OpeningRangeScanner(self.openings, stop="low", min_width=0.006)}
         self.auto_stop = auto_stop
         self.notices = []
         self.day = None
@@ -165,7 +167,8 @@ class LiveSession:
             market = self._market(stamp)
             signals = {"breakout": {}, "orb": self.scanners["orb"].update(bars),
                        "absorption": self.scanners["absorption"].update(bars),
-                       "orb_to_close": self.scanners["orb_to_close"].update(bars)}
+                       "orb_to_close": self.scanners["orb_to_close"].update(bars),
+                       "orb_wide": self.scanners["orb_wide"].update(bars)}
             for bar in bars:
                 signal = self.scanners["breakout"].update(bar)
                 if signal:

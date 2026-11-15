@@ -17,10 +17,13 @@ class OpeningRangeScanner:
       so PaperBot applies the same entry check and exits as the breakout strategies.
     """
 
-    def __init__(self, openings, *, minutes=5, top=3, min_relative=1.0, stop="high"):
+    def __init__(self, openings, *, minutes=5, top=3, min_relative=1.0, stop="high", min_width=0.0):
         # stop="high": exit floor is the range high (same exits as the breakout strategies);
         # stop="low": floor is the range low, as in published ORB studies that hold until the close.
         self.stop = stop
+        # Skip days whose opening range is narrower than this fraction: with 0.25% commission each side a
+        # trade must move more than ~0.55% to pay its costs, and quiet openings rarely lead to such moves.
+        self.min_width = min_width
         self.openings = openings
         self.minutes = minutes
         self.top = top
@@ -37,7 +40,7 @@ class OpeningRangeScanner:
         for symbol, (high, low, volume, close) in self.ranges.items():
             earlier = self.history.get(symbol)
             opening = self.openings.get((self.session, symbol))
-            if earlier and opening is not None and close > opening:
+            if earlier and opening is not None and close > opening and (high - low) / low >= self.min_width:
                 typical = median(earlier)
                 if typical and volume / typical >= self.min_relative:
                     candidates.append((volume / typical, symbol, (high, low)))
