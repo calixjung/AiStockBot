@@ -1,0 +1,146 @@
+ticker	news_names (GDELT organization names, lowercase, | separated; an organization matches when it equals a name or starts with "name ")
+AABA	altaba
+AAL	american airlines
+AAPL	apple
+ABNB	airbnb
+ADBE	adobe
+ADI	analog devices
+ADP	automatic data processing
+ADSK	autodesk
+AEP	american electric power
+AGNC	agnc investment
+AKRO	akero therapeutics
+ALAB	astera labs
+ALGN	align technology
+ALNY	alnylam
+ALXN	alexion
+AMAT	applied materials
+AMD	advanced micro devices|amd
+AMGN	amgen
+AMZN	amazon
+APP	applovin
+ASML	asml
+ATVI	activision
+AVGO	broadcom
+BIDU	baidu
+BIIB	biogen
+BKNG	booking holdings
+BKR	baker hughes
+CDNS	cadence design
+CEG	constellation energy
+CELG	celgene
+CERN	cerner
+CHRW	c h robinson|ch robinson
+CHTR	charter communications
+CMCSA	comcast
+CME	cme group
+COIN	coinbase
+COST	costco
+CRWD	crowdstrike
+CRWV	coreweave
+CSCO	cisco
+CSGP	costar group
+CSX	csx
+CTAS	cintas
+CTRP	ctrip
+CTSH	cognizant
+CTXS	citrix
+CZR	caesars entertainment|eldorado resorts
+DASH	doordash
+DDOG	datadog
+DLTR	dollar tree
+EA	electronic arts
+EBAY	ebay
+EQIX	equinix
+EXC	exelon
+EXE	expand energy
+EXPE	expedia
+FAST	fastenal
+FB	facebook
+FHB	first hawaiian
+FISV	fiserv
+FITB	fifth third
+FOLD	amicus therapeutics
+FOX	fox corp
+FOXA	fox corp
+FTNT	fortinet
+GILD	gilead
+GOOG	alphabet|google
+GOOGL	alphabet|google
+HON	honeywell
+HOOD	robinhood
+ILMN	illumina
+INSM	insmed
+INTC	intel
+INTU	intuit
+ISRG	intuitive surgical
+JD	jd com
+JKHY	jack henry
+KDP	keurig dr pepper
+KHC	kraft heinz
+KLAC	kla corp|kla-tencor
+KMB	kimberly-clark|kimberly clark
+LRCX	lam research
+LULU	lululemon
+MAR	marriott
+MCHP	microchip technology
+MDLZ	mondelez
+MELI	mercadolibre
+META	meta platforms
+MNST	monster beverage
+MPWR	monolithic power
+MRVL	marvell
+MSFT	microsoft
+MSTR	microstrategy|strategy inc
+MU	micron
+MXIM	maxim integrated
+NDAQ	nasdaq inc
+NFLX	netflix
+NTAP	netapp
+NTES	netease
+NTRS	northern trust
+NVDA	nvidia
+NXPI	nxp semiconductors
+ODFL	old dominion freight
+ON	on semiconductor|onsemi
+ORLY	o reilly automotive|oreilly automotive
+PANW	palo alto networks
+PAYX	paychex
+PCAR	paccar
+PEP	pepsico
+PLTR	palantir
+PYPL	paypal
+QCOM	qualcomm
+REG	regency centers
+REGN	regeneron
+RIVN	rivian
+RKLB	rocket lab
+ROP	roper technologies
+ROST	ross stores
+SBAC	sba communications
+SBGI	sinclair broadcast
+SBUX	starbucks
+SHOP	shopify
+SIRI	sirius xm
+SNDK	sandisk
+SNPS	synopsys
+SOFI	sofi technologies
+SPLK	splunk
+STX	seagate
+SWKS	skyworks
+TER	teradyne
+TMUS	t-mobile|t mobile
+TROW	t rowe price
+TSLA	tesla
+TXN	texas instruments
+UAL	united airlines
+VRSN	verisign
+VRTX	vertex pharmaceuticals
+WBA	walgreens
+WBD	warner bros discovery
+WDAY	workday
+WDC	western digital
+WING	wingstop
+WYNN	wynn resorts
+XEL	xcel energy
+XLNX	xilinx
