@@ -8,7 +8,7 @@ from pathlib import Path
 from statistics import median
 
 from bot import Bar, Market, PaperBot, Scanner
-from absorption import study as absorption_study
+from absorption import AbsorptionScanner, study as absorption_study
 from evaluate import baseline, beats_random, random_bots, trade_stats
 from orb import OpeningRangeScanner
 from pressure import PressureWindow, stalled_buying
@@ -188,17 +188,23 @@ def run(folder, *, offset=-4, intraday_reference=False, index_folder=None, rando
         index_folder = folder.parent / "index"
     states = market_states(index_folder, days, offset)
     covered = sorted({timestamp.date().isoformat() for timestamp in states})
-    # (variant, signal source, market veto); signal sources: 0 breakout, 1 breakout+pressure, 2 ORB.
+    # (variant, signal source, market veto); signal sources: 0 breakout, 1 breakout+pressure, 2 ORB,
+    # 3 heavy buying with a flat price (absorption, held up to 60 minutes).
     variants = [("breakout", 0, False), ("breakout_with_pressure", 1, False)]
     if covered:
         variants += [("breakout_market_veto", 0, True), ("pressure_market_veto", 1, True)]
     variants.append(("orb", 2, False))
     if covered:
         variants.append(("orb_market_veto", 2, True))
-    bots = [PaperBot(name, market_filter=veto) for name, _, veto in variants]
+    variants.append(("absorption", 3, False))
+    if covered:
+        variants.append(("absorption_market_veto", 3, True))
+    bots = [PaperBot(name, market_filter=veto, max_hold_minutes=60 if source == 3 else 30)
+            for name, source, veto in variants]
     named = {bot.name: bot for bot in bots}
     scanners = [Scanner(), Scanner(require_pressure=True)]
     orb = OpeningRangeScanner(openings)
+    absorption = AbsorptionScanner()
     randoms, random_scanners = random_bots(random_runs, days[1] if not intraday and len(days) > 1 else None)
     closes = {}
     weak_minutes = 0
@@ -220,6 +226,7 @@ def run(folder, *, offset=-4, intraday_reference=False, index_folder=None, rando
                     found[bar.symbol] = signal
             signals.append(found)
         signals.append(orb.update(bars))
+        signals.append(absorption.update(bars))
         for (_, source, _), bot in zip(variants, bots):
             bot.step(bars, market, signals[source])
         for bot, scanner in zip(randoms, random_scanners):

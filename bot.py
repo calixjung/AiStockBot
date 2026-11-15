@@ -113,8 +113,9 @@ class Position:
 
 
 class PaperBot:
-    def __init__(self, name, *, market_filter=False, social=None, quiet=False):
+    def __init__(self, name, *, market_filter=False, social=None, quiet=False, max_hold_minutes=30):
         self.name = name
+        self.max_hold = timedelta(minutes=max_hold_minutes)
         self.quiet = quiet
         self.market_filter = market_filter
         self.social = social
@@ -198,7 +199,7 @@ class PaperBot:
                     self.exit_pending[symbol] = "session_end"
                 elif bar.close < position.floor:
                     self.exit_pending[symbol] = "failed_breakout"
-                elif bar.time - position.opened >= timedelta(minutes=30):
+                elif bar.time - position.opened >= self.max_hold:
                     self.exit_pending[symbol] = "time_limit"
 
         for bar in bars:

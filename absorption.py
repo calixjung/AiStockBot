@@ -13,6 +13,8 @@ from datetime import timedelta
 from math import sqrt
 from statistics import mean, stdev
 
+from bot import Signal
+
 HORIZONS = (15, 30, 60)
 BUCKETS = ((0.0, 0.5), (0.5, 0.55), (0.55, 0.6), (0.6, 0.65), (0.65, 0.7), (0.7, 1.01))
 
@@ -74,3 +76,37 @@ def summarize(rows):
                                                        [row[4] for row in bucket if h in row[3]])
                                    for h in HORIZONS}
     return result
+
+
+class AbsorptionScanner:
+    """Trading rule from hypothesis 1 (README, fixed 2026-11-16 before the recent-data test).
+
+    Signal when the last 15 minutes had classified dollars >= 3x the usual for that minute, a mid-quote
+    range <= 0.5% and a buy-initiated share of 50-70%. The floor is the window's lowest mid, so PaperBot
+    exits once a minute closes below the flat range; the holding limit is set on the bot (60 minutes).
+    One signal per symbol per hour, so a single episode is not bought again minute after minute.
+    """
+
+    def __init__(self, *, low=0.5, high=0.7, cooldown_minutes=60):
+        self.low, self.high = low, high
+        self.cooldown = timedelta(minutes=cooldown_minutes)
+        self.last: dict[str, object] = {}
+
+    def update(self, bars):
+        signals = {}
+        for bar in bars:
+            window = bar.pressure
+            if window is None:
+                continue
+            classified = window.buy_initiated_dollars + window.sell_initiated_dollars
+            if classified <= 0 or window.expected_classified_dollars <= 0:
+                continue
+            share = window.buy_initiated_dollars / classified
+            if (classified >= 3 * window.expected_classified_dollars
+                    and 0 < window.low_mid <= window.high_mid <= window.low_mid * 1.005
+                    and self.low <= share < self.high):
+                last = self.last.get(bar.symbol)
+                if last is None or bar.time - last >= self.cooldown:
+                    self.last[bar.symbol] = bar.time
+                    signals[bar.symbol] = Signal(bar.symbol, window.low_mid)
+        return signals
