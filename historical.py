@@ -8,6 +8,7 @@ from pathlib import Path
 from statistics import median
 
 from bot import Bar, Market, PaperBot, Scanner
+from evaluate import baseline, beats_random, random_bots, trade_stats
 from orb import OpeningRangeScanner
 from pressure import PressureWindow, stalled_buying
 
@@ -143,12 +144,12 @@ def market_states(index_folder, days, offset):
 
 def compare(base, other):
     # Trades the base variant took and the other did not: what the extra filter avoided or missed.
-    taken = {(symbol, opened) for symbol, opened, _ in other.trades}
-    skipped = [pnl for symbol, opened, pnl in base.trades if (symbol, opened) not in taken]
+    taken = {(symbol, opened) for symbol, opened, *_ in other.trades}
+    skipped = [pnl for symbol, opened, pnl, _ in base.trades if (symbol, opened) not in taken]
     return round(sum(min(pnl, 0) for pnl in skipped), 2), round(sum(max(pnl, 0) for pnl in skipped), 2)
 
 
-def run(folder, *, offset=-4, intraday_reference=False, index_folder=None):
+def run(folder, *, offset=-4, intraday_reference=False, index_folder=None, random_runs=20):
     batches = defaultdict(list)
     references = defaultdict(lambda: defaultdict(list))
     counts = [0, 0, 0, 0, 0]
@@ -195,6 +196,7 @@ def run(folder, *, offset=-4, intraday_reference=False, index_folder=None):
     named = {bot.name: bot for bot in bots}
     scanners = [Scanner(), Scanner(require_pressure=True)]
     orb = OpeningRangeScanner(openings)
+    randoms, random_scanners = random_bots(random_runs)
     closes = {}
     weak_minutes = 0
     for timestamp, bars in sorted(batches.items()):
@@ -217,15 +219,28 @@ def run(folder, *, offset=-4, intraday_reference=False, index_folder=None):
         signals.append(orb.update(bars))
         for (_, source, _), bot in zip(variants, bots):
             bot.step(bars, market, signals[source])
+        for bot, scanner in zip(randoms, random_scanners):
+            bot.step(bars, market, scanner.update(bars))
     pressure_avoided, pressure_missed = compare(named["breakout"], named["breakout_with_pressure"])
     market_avoided, market_missed = (compare(named["breakout"], named["breakout_market_veto"])
                                      if covered else (None, None))
     orb_avoided, orb_missed = compare(named["orb"], named["orb_market_veto"]) if covered else (None, None)
+    # Early/late split over the evaluated days (the first day only builds the reference).
+    evaluated = days[1:] if not intraday and len(days) > 1 else days
+    split = evaluated[len(evaluated) // 2] if len(evaluated) > 1 else None
+    random_summary = baseline(randoms)
+    evaluation = {}
+    for bot in bots:
+        stats = trade_stats(bot.trades, split)
+        stats["random_share_at_least_as_good"] = beats_random(stats.get("mean_bp"), random_summary.get("means", []))
+        evaluation[bot.name] = stats
     return {"reference": "intraday" if intraday else "prior_sessions_same_minute",
             "filter_avoided_loss": pressure_avoided, "filter_missed_profit": pressure_missed,
             "market_filter_dates": covered, "weak_market_minutes": weak_minutes,
             "market_avoided_loss": market_avoided, "market_missed_profit": market_missed,
             "orb_selections": orb.selections,
+            "evaluation": evaluation, "split_date": split.isoformat() if split else None,
+            "random_baseline": random_summary,
             "orb_market_avoided_loss": orb_avoided, "orb_market_missed_profit": orb_missed,
             "sessions": sessions, "windows": counts[0],
             "relative_volume_pass": counts[1], "pressure_pass": counts[2],

@@ -86,7 +86,7 @@ def update(book, kind, message):
     return 1, 0, 0, 0, 0
 
 
-def extract_session(source, output, session, symbols):
+def extract_session(source, output, session, symbols, allow_missing=False):
     books, writers, counts = {}, {}, {}
     halted = set()
     regular_close_seen = False
@@ -136,19 +136,21 @@ def extract_session(source, output, session, symbols):
                 counts[locate][2] += event[0] in (4, 5)
     if not regular_close_seen:
         raise ValueError("ITCH file did not reach the Nasdaq end-of-market-hours event")
-    if {result[0] for result in counts.values()} != set(symbols):
+    missing = set(symbols) - {result[0] for result in counts.values()}
+    if missing and not allow_missing:
         raise ValueError("At least one requested symbol is missing from the stock directory")
-    return list(counts.values())
+    # Symbols not listed that day (IPO later, delisted earlier) are reported, not invented.
+    return list(counts.values()) + [[symbol, "missing", 0] for symbol in sorted(missing)]
 
 
-def extract(source, output, session, symbols):
+def extract(source, output, session, symbols, allow_missing=False):
     output.mkdir(parents=True, exist_ok=True)
     destination = output / session.isoformat()
     if destination.exists():
         raise FileExistsError(f"Session already exists: {destination}")
     with TemporaryDirectory(dir=output) as staging:
         folder = Path(staging)
-        counts = extract_session(source, folder, session, symbols)
+        counts = extract_session(source, folder, session, symbols, allow_missing)
         (folder / session.isoformat()).rename(destination)
     return counts
 
@@ -159,7 +161,9 @@ if __name__ == "__main__":
     parser.add_argument("output", type=Path)
     parser.add_argument("session", type=date.fromisoformat)
     parser.add_argument("symbols", nargs="+")
+    parser.add_argument("--allow-missing", action="store_true",
+                        help="Skip symbols absent from that day's stock directory instead of failing.")
     args = parser.parse_args()
-    for result in extract(args.source, args.output, args.session, args.symbols):
+    for result in extract(args.source, args.output, args.session, args.symbols, args.allow_missing):
         print(*result)
 

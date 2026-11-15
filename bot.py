@@ -109,8 +109,9 @@ class Position:
 
 
 class PaperBot:
-    def __init__(self, name, *, market_filter=False, social=None):
+    def __init__(self, name, *, market_filter=False, social=None, quiet=False):
         self.name = name
+        self.quiet = quiet
         self.market_filter = market_filter
         self.social = social
         self.cash = 10_000.0
@@ -127,6 +128,8 @@ class PaperBot:
         self.trades = []
 
     def log(self, bar, event, **details):
+        if self.quiet:
+            return
         print(json.dumps(dict(variant=self.name, time=bar.time.isoformat(),
                               symbol=bar.symbol, event=event, **details), ensure_ascii=False))
 
@@ -177,7 +180,9 @@ class PaperBot:
                 del self.positions[symbol]
                 del self.exit_pending[symbol]
                 self.fills += 1
-                self.trades.append((symbol, position.opened, proceeds - position.cost))
+                # (symbol, opened, pnl, pnl as a fraction of the amount spent)
+                self.trades.append((symbol, position.opened, proceeds - position.cost,
+                                    (proceeds - position.cost) / position.cost))
                 self.log(bar, "paper_sell", reason=reason, quantity=position.quantity,
                          price=round(price, 4), pnl=round(proceeds - position.cost, 2))
                 position = None

@@ -14,7 +14,7 @@
 <main>
 <div class="top"><div><h1>거래 현황</h1><p id="replay-source"><span class="badge">가상 시세 리플레이</span> · 2026년 11월 3–9일 · 미국 동부시간</p></div>
 <label>전략 <select id="strategy"><option value="pressure_committee">위원회 + 매수 압력</option><option value="committee">분석위원회</option><option value="market_veto">돌파 + 시장 거부권</option><option value="breakout">돌파만</option></select></label></div>
-<section id="historical-results" hidden><h2>과거 데이터 시험</h2><p id="historical-notes"></p><div class="table-wrap"><table><thead><tr><th>전략</th><th>순손익</th><th>최대 낙폭</th><th>체결</th></tr></thead><tbody id="historical-summary"></tbody></table></div></section>
+<section id="historical-results" hidden><h2>과거 데이터 시험</h2><p id="historical-notes"></p><div class="table-wrap"><table><thead><tr><th>전략</th><th>순손익</th><th>최대 낙폭</th><th>체결</th></tr></thead><tbody id="historical-summary"></tbody></table></div><h3>이익 판정</h3><p id="evaluation-notes"></p><div class="table-wrap"><table><thead><tr><th>전략</th><th>거래</th><th>승률</th><th>거래당 평균</th><th>t값</th><th>앞 기간 평균</th><th>뒤 기간 평균</th><th>무작위가 같거나 나은 비율</th></tr></thead><tbody id="evaluation-rows"></tbody></table></div></section>
 <div class="cards" id="metrics" aria-live="polite"></div>
 <section><h2>보유 종목</h2><p id="positions"></p></section>
 <section id="trades"><div class="section-head"><h2>체결 내역</h2><label>구분 <select id="side"><option value="all">전체</option><option value="paper_buy">매수</option><option value="paper_sell">매도</option></select></label></div>
@@ -25,7 +25,7 @@
 <section id="saved"><div class="section-head"><div><h2>저장한 X·Reddit 글</h2><p>화면 확인용 예시 · 실제 게시물 수집 전</p></div><label>출처 <select id="platform"><option value="all">전체</option><option>X</option><option>Reddit</option></select></label></div><div id="feed" tabindex="0" role="region" aria-label="저장한 글 스크롤"></div></section>
 </main>
 <script>
-const {summary, events, sessions, reference, windows, relative_volume_pass, pressure_pass, buy_share_among_volume_pass, tight_mid_among_volume_pass, filter_avoided_loss, filter_missed_profit, market_filter_dates, weak_market_minutes, market_avoided_loss, market_missed_profit, orb_selections, orb_market_avoided_loss, orb_market_missed_profit} = __REPLAY_DATA__;
+const {summary, events, sessions, reference, windows, relative_volume_pass, pressure_pass, buy_share_among_volume_pass, tight_mid_among_volume_pass, filter_avoided_loss, filter_missed_profit, market_filter_dates, weak_market_minutes, market_avoided_loss, market_missed_profit, orb_selections, orb_market_avoided_loss, orb_market_missed_profit, evaluation, split_date, random_baseline} = __REPLAY_DATA__;
 const posts = [
   {platform:"X", time:"11-06 09:49", title:"돌파 직전에 매수·매도 호가 차이가 벌어짐", symbol:"SIM_WIDE", text:"돌파가 보여도 호가 차이가 평소보다 크게 벌어진 구간에서는 예상 체결가를 다시 확인하자는 관찰."},
   {platform:"Reddit", time:"11-05 10:02", title:"여러 계정이 반복한 소문, 최초 출처는 어디?", symbol:"SIM_RUMOR", text:"문구가 거의 같은 게시물을 하나로 묶고 공시나 회사 발표로 확인할 수 있는지 살펴보자는 토론."},
@@ -108,6 +108,20 @@ if (sessions) {
     orb_selections.reduce((total,item)=>total+item.symbols.length,0) + "건 / " + orb_selections.length + "일";
   if (summary[0].fills && marketDates.length) byId("historical-notes").textContent += " · 시장 거부권으로 피한 손실 " + usd.format(market_avoided_loss) + ", 놓친 수익 " + usd.format(market_missed_profit);
   if (orb_market_avoided_loss != null && summary.some(result=>result.variant==="orb" && result.fills)) byId("historical-notes").textContent += " · ORB에서 시장 거부권으로 피한 손실 " + usd.format(orb_market_avoided_loss) + ", 놓친 수익 " + usd.format(orb_market_missed_profit);
+  if (evaluation) {
+    const pct = value => value == null ? "—" : (value / 100).toFixed(2) + "%";
+    const runs = random_baseline?.runs ?? 0;
+    byId("evaluation-notes").textContent = "수익률은 매수 금액 대비, 호가 차이·수수료 포함. t값이 2 안팎을 넘어야 운이 아닐 가능성을 따져볼 만합니다. " +
+      (split_date ? "앞 기간은 " + split_date + " 이전, 뒤 기간은 그날부터입니다. " : "") +
+      (runs ? "무작위 진입 " + runs + "회(같은 비용·청산 규칙)의 거래당 평균은 중앙값 " + pct(random_baseline.mean_bp_p50) +
+        ", 하위 5% " + pct(random_baseline.mean_bp_p05) + ", 상위 5% " + pct(random_baseline.mean_bp_p95) + "입니다." : "");
+    rows("evaluation-rows", summary.map(result => {
+      const stats = evaluation[result.variant] ?? {trades:0};
+      const share = stats.random_share_at_least_as_good;
+      return [names[result.variant], stats.trades + "건", stats.trades ? stats.win_rate_pct + "%" : "—", pct(stats.mean_bp),
+        stats.t_stat ?? "—", pct(stats.early?.mean_bp), pct(stats.late?.mean_bp), share == null ? "—" : Math.round(share * 100) + "%"];
+    }), 8, "결과 없음");
+  }
   rows("historical-summary",summary.map(result=>[names[result.variant],result.fills?usd.format(result.net_pnl):"—",result.fills?result.max_drawdown_pct.toFixed(3)+"%":"—",result.fills+"건"]),4,"결과 없음");
   byId("saved").hidden = true;
   document.querySelector("nav a[href=\"#saved\"]")?.remove();
