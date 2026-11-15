@@ -199,7 +199,7 @@ def run(folder, *, offset=-4, intraday_reference=False, index_folder=None, rando
     named = {bot.name: bot for bot in bots}
     scanners = [Scanner(), Scanner(require_pressure=True)]
     orb = OpeningRangeScanner(openings)
-    randoms, random_scanners = random_bots(random_runs)
+    randoms, random_scanners = random_bots(random_runs, days[1] if not intraday and len(days) > 1 else None)
     closes = {}
     weak_minutes = 0
     for timestamp, bars in sorted(batches.items()):

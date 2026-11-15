@@ -15,19 +15,23 @@ class RandomScanner:
     most of these random runs under identical costs, budget and exit rules.
     """
 
-    def __init__(self, seed, *, rate=0.0005, gap=0.002):
+    def __init__(self, seed, *, rate=0.0005, gap=0.002, start=None):
         self.random = random.Random(seed)
+        self.start = start  # first evaluated day; the strategies cannot trade the reference-only first day
         self.rate = rate
         self.gap = gap
 
     def update(self, bars):
+        draws = {bar.symbol: self.random.random() for bar in bars}
+        if self.start is not None and bars[0].time.date() < self.start:
+            return {}
         return {bar.symbol: Signal(bar.symbol, bar.close * (1 - self.gap))
-                for bar in bars if self.random.random() < self.rate}
+                for bar in bars if draws[bar.symbol] < self.rate}
 
 
-def random_bots(count):
+def random_bots(count, start=None):
     return [PaperBot(f"random_{seed}", quiet=True) for seed in range(count)], \
-           [RandomScanner(seed) for seed in range(count)]
+           [RandomScanner(seed, start=start) for seed in range(count)]
 
 
 def trade_stats(trades, split=None):
