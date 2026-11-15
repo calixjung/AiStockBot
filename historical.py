@@ -14,39 +14,97 @@ from orb import OpeningRangeScanner
 from pressure import PressureWindow, stalled_buying
 
 
-def load_day(folder, symbol, session, offset, reference=None):
-    base = datetime.combine(session, datetime.min.time(), timezone(timedelta(hours=offset)))
-    bars = []
-    daily_windows = {}
-    recent = deque(maxlen=15)
-    history = []
-    minute = None
-    previous_quote = None
-    trades = []
-    mids = []
-    checks = [0, 0, 0, 0]
-    windows = 0
-    opening = None
+class MinuteBars:
+    """Turn a time-ordered stream of trades and top-of-book quotes into one-minute Bars.
 
-    def process():
-        nonlocal windows
+    Used by the historical replay (`load_day`) and by live paper trading, so both see identical bars.
+    `reference` maps minute-of-day to earlier sessions' 15-minute (volume, classified dollars); None means
+    the single-day smoke test that compares with earlier windows of the same day.
+    """
+
+    def __init__(self, symbol, session, offset, reference=None):
+        self.symbol = symbol
+        self.reference = reference
+        self.base = datetime.combine(session, datetime.min.time(), timezone(timedelta(hours=offset)))
+        self.daily_windows = {}
+        self.recent = deque(maxlen=15)
+        self.history = []
+        self.minute = None
+        self.previous_quote = None
+        self.trades = []
+        self.mids = []
+        self.checks = [0, 0, 0, 0]
+        self.windows = 0
+        self.opening = None
+
+    def event(self, seconds, bid, ask, trade=None):
+        """One message: seconds after local midnight, best bid/ask after it, optional (price, size, side).
+
+        Side follows LOBSTER: -1 buy-initiated, 1 sell-initiated, 0 unknown. Returns completed bars.
+        """
+        completed = []
+        event_minute = int(seconds // 60)
+        if not 570 <= event_minute < 960:
+            return completed
+        if event_minute != self.minute:
+            if self.minute is not None:
+                completed += self._close_minute()
+                if event_minute != self.minute + 1:
+                    self.recent.clear()
+            self.minute = event_minute
+            self.trades = []
+            self.mids = []
+        if 0 < bid < ask < 100_000:
+            self.previous_quote = (bid, ask, seconds)
+            self.mids.append((ask + bid) / 2)
+        else:
+            self.previous_quote = None
+        if trade is not None:
+            self.trades.append(trade)
+            if self.opening is None:
+                self.opening = trade[0]
+        return completed
+
+    def finish(self):
+        return self._close_minute() if self.minute is not None else []
+
+    def flush(self, seconds):
+        """Live clock tick: close the current minute once time has passed it, even without a new message.
+
+        Same effect as the first message of a later minute, minus that message's quote.
+        """
+        now_minute = int(seconds // 60)
+        if self.minute is None or now_minute <= self.minute or not 570 <= now_minute < 960:
+            return []
+        completed = self._close_minute()
+        if now_minute != self.minute + 1:
+            self.recent.clear()
+        self.minute = now_minute
+        self.trades = []
+        self.mids = []
+        return completed
+
+    def _close_minute(self):
+        trades, recent, minute = self.trades, self.recent, self.minute
         if not trades:
             recent.clear()
-            return
-        timestamp = base + timedelta(minutes=minute + 1)
+            return []
+        timestamp = self.base + timedelta(minutes=minute + 1)
         prices = [price for price, _, _ in trades]
         volume = sum(size for _, size, _ in trades)
         buy = sum(price * size for price, size, side in trades if side == -1)
         sell = sum(price * size for price, size, side in trades if side == 1)
+        mids = self.mids
         recent.append((volume, buy, sell, min(mids) if mids else None, max(mids) if mids else None))
         ratio = None
         pressure = None
         if len(recent) == 15:
             values = [sum(item[index] for item in recent) for index in range(3)]
-            daily_windows[minute] = (values[0], values[1] + values[2])
+            self.daily_windows[minute] = (values[0], values[1] + values[2])
             # In multi-day mode the reference contains only completed earlier sessions.
-            comparable = reference.get(minute, ()) if reference is not None else history[:-14]
-            if comparable and (reference is not None or len(history) >= 30):
+            reference = self.reference
+            comparable = reference.get(minute, ()) if reference is not None else self.history[:-14]
+            if comparable and (reference is not None or len(self.history) >= 30):
                 typical_volume = median(item[0] for item in comparable)
                 typical_dollars = median(item[1] for item in comparable)
                 ratio = values[0] / typical_volume if typical_volume else None
@@ -54,47 +112,30 @@ def load_day(folder, symbol, session, offset, reference=None):
                     pressure = PressureWindow(values[1], values[2], typical_dollars,
                                               max(item[4] for item in recent),
                                               min(item[3] for item in recent))
-                    windows += 1
-                    checks[0] += int(ratio is not None and ratio >= 3)
-                    pressure_passed = stalled_buying(pressure)
-                    checks[1] += int(pressure_passed)
+                    self.windows += 1
+                    self.checks[0] += int(ratio is not None and ratio >= 3)
+                    self.checks[1] += int(stalled_buying(pressure))
                     if ratio is not None and ratio >= 3:
                         classified = values[1] + values[2]
-                        checks[2] += int(classified > 0 and values[1] / classified >= 0.70)
-                        checks[3] += int(pressure.high_mid <= pressure.low_mid * 1.005)
-            history.append((values[0], values[1] + values[2]))
-        bid, ask, quote_seconds = previous_quote or (None, None, 0)
-        bar = Bar(timestamp, symbol, max(prices), min(prices), prices[-1], volume,
-                  ratio, bid, ask, (minute + 1) * 60 - quote_seconds, pressure=pressure)
-        bars.append(bar)
+                        self.checks[2] += int(classified > 0 and values[1] / classified >= 0.70)
+                        self.checks[3] += int(pressure.high_mid <= pressure.low_mid * 1.005)
+            self.history.append((values[0], values[1] + values[2]))
+        bid, ask, quote_seconds = self.previous_quote or (None, None, 0)
+        return [Bar(timestamp, self.symbol, max(prices), min(prices), prices[-1], volume,
+                    ratio, bid, ask, (minute + 1) * 60 - quote_seconds, pressure=pressure)]
 
+
+def load_day(folder, symbol, session, offset, reference=None):
+    builder = MinuteBars(symbol, session, offset, reference)
+    bars = []
     with (folder / "message.csv").open(newline="") as messages, (folder / "orderbook.csv").open(newline="") as quotes:
         for message, quote in zip(csv.reader(messages), csv.reader(quotes), strict=True):
-            seconds = float(message[0])
-            event_minute = int(seconds // 60)
-            if not 570 <= event_minute < 960:
-                continue
-            if event_minute != minute:
-                if minute is not None:
-                    process()
-                    if event_minute != minute + 1:
-                        recent.clear()
-                minute = event_minute
-                trades = []
-                mids = []
-            ask, bid = int(quote[0]) / 10_000, int(quote[2]) / 10_000
-            if 0 < bid < ask < 100_000:
-                previous_quote = (bid, ask, seconds)
-                mids.append((ask + bid) / 2)
-            else:
-                previous_quote = None
+            trade = None
             if message[1] in {"4", "5"} and message[5] in {"-1", "0", "1"}:
-                trades.append((int(message[4]) / 10_000, int(message[3]), int(message[5])))
-                if opening is None:
-                    opening = trades[-1][0]
-        if minute is not None:
-            process()
-    return bars, daily_windows, (windows, *checks), opening
+                trade = (int(message[4]) / 10_000, int(message[3]), int(message[5]))
+            bars += builder.event(float(message[0]), int(quote[2]) / 10_000, int(quote[0]) / 10_000, trade)
+    bars += builder.finish()
+    return bars, builder.daily_windows, (builder.windows, *builder.checks), builder.opening
 
 
 def load_index(folder, session, offset):

@@ -129,6 +129,7 @@ class PaperBot:
         self.session = None
         self.session_start = self.cash
         self.loss_stop = False
+        self.suspended = False  # set by live.AutoStop; blocks new buys, exits still run
         self.fills = 0
         self.trades = []
 
@@ -156,6 +157,8 @@ class PaperBot:
             return "wide_spread"
         if self.loss_stop:
             return "daily_loss_limit"
+        if self.suspended:
+            return "auto_stopped"
         if bar.time.time() >= NO_NEW_BUYS_AFTER:
             return "near_close"
         if self.market_filter:
