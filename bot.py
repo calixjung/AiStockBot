@@ -1,13 +1,17 @@
 """Replay-only US equity scanner and paper trading committee."""
 
 from dataclasses import dataclass
-from datetime import datetime, timedelta
+from datetime import datetime, time as dt_time, timedelta
 import json
 
 from pressure import PressureWindow, stalled_buying
 
 # Largest amount one paper buy may spend, fee included (raised from $1,000 so AMZN can be bought).
 TRADE_BUDGET = 2_500
+# Bar times are minute ends in New York time. No new buys in the last 15 minutes; positions are
+# flagged at the 15:55 bar and sold at the next bar so nothing is held overnight.
+NO_NEW_BUYS_AFTER = dt_time(15, 45)
+CLOSE_ALL_AFTER = dt_time(15, 55)
 
 
 @dataclass(frozen=True)
@@ -151,6 +155,8 @@ class PaperBot:
             return "wide_spread"
         if self.loss_stop:
             return "daily_loss_limit"
+        if bar.time.time() >= NO_NEW_BUYS_AFTER:
+            return "near_close"
         if self.market_filter:
             return market.buy_veto()
         return None
@@ -187,7 +193,10 @@ class PaperBot:
                          price=round(price, 4), pnl=round(proceeds - position.cost, 2))
                 position = None
             if position and not reason and not bar.halted:
-                if bar.close < position.floor:
+                if bar.time.time() >= CLOSE_ALL_AFTER:
+                    # Intraday only: never carry a position into the next session.
+                    self.exit_pending[symbol] = "session_end"
+                elif bar.close < position.floor:
                     self.exit_pending[symbol] = "failed_breakout"
                 elif bar.time - position.opened >= timedelta(minutes=30):
                     self.exit_pending[symbol] = "time_limit"

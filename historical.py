@@ -8,6 +8,7 @@ from pathlib import Path
 from statistics import median
 
 from bot import Bar, Market, PaperBot, Scanner
+from absorption import study as absorption_study
 from evaluate import baseline, beats_random, random_bots, trade_stats
 from orb import OpeningRangeScanner
 from pressure import PressureWindow, stalled_buying
@@ -155,6 +156,7 @@ def run(folder, *, offset=-4, intraday_reference=False, index_folder=None, rando
     counts = [0, 0, 0, 0, 0]
     sessions = []
     openings = {}
+    day_bars = []
     if (folder / "message.csv").is_file():
         inputs = [(date(2012, 6, 21), "AAPL", folder)]
         intraday = True
@@ -178,7 +180,8 @@ def run(folder, *, offset=-4, intraday_reference=False, index_folder=None, rando
             references[symbol][minute].append(window)
         for bar in bars:
             batches[bar.time].append(bar)
-        counts = [total + value for total, value in zip(counts, stats)]
+        day_bars.append(bars)
+        counts =[total + value for total, value in zip(counts, stats)]
 
     days = sorted({session for session, _, _ in inputs})
     if index_folder is None and folder.name == "sessions" and (folder.parent / "index").is_dir():
@@ -241,6 +244,7 @@ def run(folder, *, offset=-4, intraday_reference=False, index_folder=None, rando
             "orb_selections": orb.selections,
             "evaluation": evaluation, "split_date": split.isoformat() if split else None,
             "random_baseline": random_summary,
+            "absorption": absorption_study(day_bars),
             "orb_market_avoided_loss": orb_avoided, "orb_market_missed_profit": orb_missed,
             "sessions": sessions, "windows": counts[0],
             "relative_volume_pass": counts[1], "pressure_pass": counts[2],

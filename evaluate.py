@@ -38,6 +38,7 @@ def trade_stats(trades, split=None):
             return {"trades": 0}
         result = {"trades": len(returns), "win_rate_pct": round(100 * sum(r > 0 for r in returns) / len(returns), 1),
                   "mean_bp": round(mean(returns), 1), "median_bp": round(median(returns), 1),
+                  "best_bp": round(max(returns), 1), "worst_bp": round(min(returns), 1),
                   "pnl": round(sum(pnl for _, _, pnl, _ in selected), 2)}
         if len(returns) > 1 and stdev(returns) > 0:
             # t near 0 means the average could easily be luck; about 2 or more is the usual first bar.
@@ -58,7 +59,11 @@ def baseline(bots):
         return {"runs": 0}
     pick = lambda fraction: round(means[min(len(means) - 1, int(fraction * len(means)))], 1)
     return {"runs": len(means), "trades_per_run": round(mean(len(bot.trades) for bot in bots), 1),
-            "mean_bp_p05": pick(0.05), "mean_bp_p50": pick(0.5), "mean_bp_p95": pick(0.95), "means": [round(m, 1) for m in means]}
+            "mean_bp_p05": pick(0.05), "mean_bp_p50": pick(0.5), "mean_bp_p95": pick(0.95), "means": [round(m, 1) for m in means],
+            # The most extreme single trades, to spot data errors or overnight holds driving a run.
+            "extreme_trades": sorted(([bot.name, symbol, opened.isoformat(), round(ratio * 10_000, 1)]
+                                      for bot in bots for symbol, opened, _, ratio in bot.trades),
+                                     key=lambda item: abs(item[3]), reverse=True)[:5]}
 
 
 def beats_random(strategy_mean, random_means):
