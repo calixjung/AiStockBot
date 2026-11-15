@@ -4,7 +4,8 @@ Reads a generated dashboard (or a historical.py JSON with events), pairs each pa
 paper_sell of the same strategy and symbol, and re-prices the round trip. Fill prices already include the
 bid/ask spread and the 0.01% slippage of the replay; only the commission is changed:
     pnl = sell_value * (1 - rate) - fixed - (buy_value * (1 + rate) + fixed)
-Budget and cash effects of a different fee are ignored (they are tiny at these sizes).
+Budget and cash effects of a different fee are ignored (they are tiny at these sizes). Logged fill prices
+never include the commission, so any run can be re-priced whatever fee it used.
 """
 
 import argparse
@@ -17,7 +18,7 @@ SCENARIOS = [
     ("수수료 없음 (미국 무수수료 증권사 수준)", 0.0, 0.0),
     ("주문당 $1 (지금까지의 시험 기준)", 1.0, 0.0),
     ("한쪽 0.07% (국내 증권사 우대 수준)", 0.0, 0.0007),
-    ("한쪽 0.25% (국내 증권사 기본 수준)", 0.0, 0.0025),
+    ("한쪽 0.25% (미래에셋 온라인, 봇 기본값)", 0.0, 0.0025),
 ]
 
 

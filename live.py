@@ -16,7 +16,8 @@ from datetime import date, timedelta
 import heapq
 import json
 from pathlib import Path
-from statistics import mean
+from math import sqrt
+from statistics import mean, stdev
 
 from absorption import AbsorptionScanner
 from bot import Market, PaperBot, Scanner
@@ -35,20 +36,23 @@ STRATEGIES = [("breakout", "breakout", False, 30), ("breakout_market_veto", "bre
 class AutoStop:
     """Stop new buys for a strategy whose live trades are clearly worse than expected.
 
-    After `min_trades` closed trades, if the average trade (costs included) is below `floor_bp`, the
-    strategy is suspended. Exits still run. The default floor is the 2019 random-entry 5th percentile.
+    After `min_trades` closed trades, if the average trade (all costs included) is a loss and the loss is
+    not plausibly luck (t value <= `max_t`), the strategy is suspended. Exits still run.
     """
 
-    def __init__(self, min_trades=20, floor_bp=-19.3):
+    def __init__(self, min_trades=20, max_t=-1.0):
         self.min_trades = min_trades
-        self.floor_bp = floor_bp
+        self.max_t = max_t
 
     def review(self, bot):
         returns = [ratio * 10_000 for *_, ratio in bot.trades]
-        if not bot.suspended and len(returns) >= self.min_trades and mean(returns) < self.floor_bp:
+        if bot.suspended or len(returns) < self.min_trades or stdev(returns) == 0:
+            return None
+        t_value = mean(returns) / (stdev(returns) / sqrt(len(returns)))
+        if mean(returns) < 0 and t_value <= self.max_t:
             bot.suspended = True
             return {"variant": bot.name, "event": "auto_stop", "trades": len(returns),
-                    "mean_bp": round(mean(returns), 1), "floor_bp": self.floor_bp}
+                    "mean_bp": round(mean(returns), 1), "t": round(t_value, 2)}
         return None
 
 

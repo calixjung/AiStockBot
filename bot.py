@@ -8,6 +8,11 @@ from pressure import PressureWindow, stalled_buying
 
 # Largest amount one paper buy may spend, fee included (raised from $1,000 so AMZN can be bought).
 TRADE_BUDGET = 2_500
+# Brokerage cost per side, as a fraction of the trade value. Mirae Asset online US stocks: 0.25%, no
+# minimum (official page, checked 2026-11-16). US SEC fee on sales: 0.00206% (from 2026-04-02 trades).
+# Fills are also taken 0.01% worse than the quote. fees.py re-prices finished trades for other rates.
+FEE_RATE = 0.0025
+SELL_FEE_RATE = 0.0000206
 # Bar times are minute ends in New York time. No new buys in the last 15 minutes; positions are
 # flagged at the 15:55 bar and sold at the next bar so nothing is held overnight.
 NO_NEW_BUYS_AFTER = dt_time(15, 45)
@@ -185,7 +190,7 @@ class PaperBot:
             reason = self.exit_pending.get(symbol)
             if position and reason and self.quote_ok(bar):
                 price = bar.bid * 0.9999
-                proceeds = position.quantity * price - 1.0
+                proceeds = position.quantity * price * (1 - FEE_RATE - SELL_FEE_RATE)
                 self.cash += proceeds
                 del self.positions[symbol]
                 del self.exit_pending[symbol]
@@ -214,11 +219,11 @@ class PaperBot:
                 self.log(bar, "buy_veto", reason=reason or "breakout_reversed")
                 continue
             price = bar.ask * 1.0001
-            quantity = int(max(0, min(self.cash, TRADE_BUDGET) - 1.0) / price)
+            quantity = int(min(self.cash, TRADE_BUDGET) / (price * (1 + FEE_RATE)))
             if not quantity:
                 self.log(bar, "buy_veto", reason="insufficient_budget")
                 continue
-            cost = quantity * price + 1.0
+            cost = quantity * price * (1 + FEE_RATE)
             self.cash -= cost
             self.positions[bar.symbol] = Position(quantity, cost, signal.floor, bar.time)
             self.fills += 1
