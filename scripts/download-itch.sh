@@ -3,14 +3,24 @@
 # Each resume is a fresh curl started from the file's real size. Two copies of this script writing
 # the same file once produced files larger than the server copy, so a lock folder blocks a second run
 # (delete download.lock by hand only if no copy is running).
-cd /d/us-stock-data/itch || exit 1
+# Usage: sh download-itch.sh                      (the 2019 sample days into /d/us-stock-data/itch)
+#        ITCH_DIR=/d/us-stock-data/itch-recent sh download-itch.sh FILE...   (any files from the server folder)
+ITCH_DIR=${ITCH_DIR:-/d/us-stock-data/itch}
+mkdir -p "$ITCH_DIR" && cd "$ITCH_DIR" || exit 1
 mkdir download.lock 2>/dev/null || { echo "$(date +%T) another download is running (download.lock exists)"; exit 1; }
 trap 'rmdir download.lock' EXIT
 BASE="https://emi.nasdaq.com/ITCH/Nasdaq%20ITCH"
-for f in 12302019.NASDAQ_ITCH50.gz 07302019.NASDAQ_ITCH50.gz 10302019.NASDAQ_ITCH50.gz S101819-v50.txt.gz 08302019.NASDAQ_ITCH50.gz 01302019.NASDAQ_ITCH50.gz 03272019.NASDAQ_ITCH50.gz; do
+FILES=${*:-12302019.NASDAQ_ITCH50.gz 07302019.NASDAQ_ITCH50.gz 10302019.NASDAQ_ITCH50.gz S101819-v50.txt.gz 08302019.NASDAQ_ITCH50.gz 01302019.NASDAQ_ITCH50.gz 03272019.NASDAQ_ITCH50.gz}
+for f in $FILES; do
   [ -f "$f.ok" ] && continue
   want=$(curl -s -I -L "$BASE/$f" | tr -d '\r' | awk 'tolower($1)=="content-length:"{n=$2} END{print n}')
   [ -n "$want" ] || { echo "$(date +%T) FAILED $f (no size from server)"; continue; }
+  # Keep at least 20 GB free after this file so extraction still has room.
+  free=$(df -k . | awk 'NR==2{print $4}')
+  have_now=$(stat -c %s "$f" 2>/dev/null || echo 0)
+  if [ $(( (want - have_now) / 1024 + 20 * 1024 * 1024 )) -gt "$free" ]; then
+    echo "$(date +%T) LOW SPACE: stop before $f (free $((free / 1024 / 1024)) GB)"; break
+  fi
   echo "$(date +%T) start $f ($want bytes)"
   ok=
   for attempt in 1 2; do
