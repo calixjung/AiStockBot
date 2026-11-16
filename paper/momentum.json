@@ -1,0 +1,117 @@
+{
+ "as_of": "2026-11-13",
+ "start_signal_day": "2026-11-02",
+ "run_on": "2026-11-17",
+ "equity": 9007.87,
+ "return_pct": -9.92,
+ "max_drawdown_pct": 18.7,
+ "cash": 0.0,
+ "spy_equity": 9991.81,
+ "spy_return_pct": -0.08,
+ "universe_equal_weight_return_pct": -1.32,
+ "positions": [
+  {
+   "symbol": "SNDK",
+   "bought": "2026-11-03",
+   "cost": 1000.0,
+   "value": 796.69,
+   "last_close": 885.01,
+   "return_pct": -20.33
+  },
+  {
+   "symbol": "MRNA",
+   "bought": "2026-11-03",
+   "cost": 1000.0,
+   "value": 1003.09,
+   "last_close": 223.37,
+   "return_pct": 0.31
+  },
+  {
+   "symbol": "SPCX",
+   "bought": "2026-11-03",
+   "cost": 1000.0,
+   "value": 1007.73,
+   "last_close": 139.11,
+   "return_pct": 0.77
+  },
+  {
+   "symbol": "LITE",
+   "bought": "2026-11-03",
+   "cost": 1000.0,
+   "value": 873.46,
+   "last_close": 596.62,
+   "return_pct": -12.65
+  },
+  {
+   "symbol": "MU",
+   "bought": "2026-11-03",
+   "cost": 1000.0,
+   "value": 902.38,
+   "last_close": 778.3100000000001,
+   "return_pct": -9.76
+  },
+  {
+   "symbol": "DELL",
+   "bought": "2026-11-03",
+   "cost": 1000.0,
+   "value": 858.21,
+   "last_close": 344.53000000000003,
+   "return_pct": -14.18
+  },
+  {
+   "symbol": "STX",
+   "bought": "2026-11-03",
+   "cost": 1000.0,
+   "value": 858.88,
+   "last_close": 528.2900000000001,
+   "return_pct": -14.11
+  },
+  {
+   "symbol": "MRVL",
+   "bought": "2026-11-03",
+   "cost": 1000.0,
+   "value": 896.78,
+   "last_close": 156.76000000000002,
+   "return_pct": -10.32
+  },
+  {
+   "symbol": "WDC",
+   "bought": "2026-11-03",
+   "cost": 1000.0,
+   "value": 840.77,
+   "last_close": 295.65000000000003,
+   "return_pct": -15.92
+  },
+  {
+   "symbol": "INTC",
+   "bought": "2026-11-03",
+   "cost": 1000.0,
+   "value": 969.86,
+   "last_close": 59.660000000000004,
+   "return_pct": -3.01
+  }
+ ],
+ "closed_trades": [],
+ "orders_for_next_open": {
+  "sell": [],
+  "buy": []
+ },
+ "closed_trade_stats": {
+  "trades": 0,
+  "win_rate_pct": null,
+  "avg_trade_pct": null,
+  "avg_vs_spy_pct": null
+ },
+ "equity_curve": {
+  "2026-11-02": 10000.0,
+  "2026-11-03": 10009.88,
+  "2026-11-04": 9533.92,
+  "2026-11-05": 8135.42,
+  "2026-11-06": 8495.03,
+  "2026-11-09": 9117.2,
+  "2026-11-10": 8934.22,
+  "2026-11-11": 9599.17,
+  "2026-11-12": 9368.34,
+  "2026-11-13": 9007.87
+ }
+}

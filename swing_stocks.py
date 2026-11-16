@@ -88,7 +88,8 @@ def indicators(frame, calendar, names):
 
 
 def simulate(wide, calendar, spy, universe, start, end, entry, exit_signal, max_hold, *, slots=10,
-             momentum=None, eligible=None, risk_on=None):
+             momentum=None, eligible=None, risk_on=None, detail=None):
+    # detail: pass a dict to keep positions open at the end and receive the full state (paper trading).
     opens, closes = wide["open"].to_numpy(), wide["close"].to_numpy()
     column = {symbol: j for j, symbol in enumerate(wide["close"].columns)}
     entry_values = entry.to_numpy() if entry is not None else None
@@ -108,6 +109,10 @@ def simulate(wide, calendar, spy, universe, start, end, entry, exit_signal, max_
         cash += proceeds
         market = spy_open[day] / spy_open[opened] - 1 if day > opened else 0.0
         trades.append((proceeds / cost - 1, proceeds / cost - 1 - market, day - opened))
+        if detail is not None:
+            detail.setdefault("closed", []).append(
+                {"symbol": symbol, "bought": str(calendar[opened])[:10], "sold": str(calendar[day])[:10],
+                 "return_pct": round((proceeds / cost - 1) * 100, 2)})
 
     for t in days:
         # --- open: orders decided at yesterday's close ---
@@ -163,6 +168,14 @@ def simulate(wide, calendar, spy, universe, start, end, entry, exit_signal, max_
             pending_buy = [symbol for symbol in members
                            if bool(entry_values[t, column[symbol]]) and symbol not in positions][:free]
     last = days[-1]
+    if detail is not None:
+        detail.update(
+            cash=cash, curve=[float(value) for value in curve], dates=[str(day)[:10] for day in calendar[days]],
+            positions=[{"symbol": symbol, "bought": str(calendar[opened])[:10], "cost": cost,
+                        "value": shares * last_close[symbol], "last_close": float(last_close[symbol])}
+                       for symbol, (shares, cost, opened) in positions.items()],
+            pending_sell=sorted(pending_sell), pending_buy=list(pending_buy), members=list(members))
+        return summary(curve, calendar[days], trades, exposure / len(days))
     for symbol in list(positions):
         close_position(symbol, last_close[symbol], last)
     curve[-1] = cash
