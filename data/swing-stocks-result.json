@@ -1,0 +1,153 @@
+{
+ "universe_symbols_ever": 424,
+ "periods": {
+  "2005-2015": {
+   "spy_buy_and_hold": {
+    "period": "2005-01-03~2015-12-31",
+    "cagr_pct": 4.76,
+    "final": 16670.0,
+    "max_drawdown_pct": 56.5,
+    "exposure_pct": 100.0,
+    "trades": 0
+   },
+   "universe_equal_weight": {
+    "period": "2005-01-03~2015-12-31",
+    "cagr_pct": 4.29,
+    "final": 15868.0,
+    "max_drawdown_pct": 60.9,
+    "exposure_pct": 100.0,
+    "trades": 0
+   },
+   "trend_55_20": {
+    "period": "2005-01-03~2015-12-31",
+    "cagr_pct": -3.0,
+    "final": 7158.0,
+    "max_drawdown_pct": 59.3,
+    "exposure_pct": 91.1,
+    "trades": 754,
+    "win_rate_pct": 36.7,
+    "avg_trade_pct": -0.27,
+    "median_trade_pct": -2.16,
+    "avg_vs_spy_pct": -0.77,
+    "vs_spy_t": -2.35,
+    "avg_hold_days": 33.4
+   },
+   "dip_in_uptrend": {
+    "period": "2005-01-03~2015-12-31",
+    "cagr_pct": -6.94,
+    "final": 4538.0,
+    "max_drawdown_pct": 57.7,
+    "exposure_pct": 55.3,
+    "trades": 3970,
+    "win_rate_pct": 53.6,
+    "avg_trade_pct": -0.18,
+    "median_trade_pct": 0.14,
+    "avg_vs_spy_pct": -0.37,
+    "vs_spy_t": -8.16,
+    "avg_hold_days": 3.9
+   },
+   "volume_flat": {
+    "period": "2005-01-03~2015-12-31",
+    "cagr_pct": -1.09,
+    "final": 8870.0,
+    "max_drawdown_pct": 14.6,
+    "exposure_pct": 2.0,
+    "trades": 108,
+    "win_rate_pct": 44.4,
+    "avg_trade_pct": -1.08,
+    "median_trade_pct": -0.64,
+    "avg_vs_spy_pct": -1.61,
+    "vs_spy_t": -2.09,
+    "avg_hold_days": 5.0
+   },
+   "momentum_monthly": {
+    "period": "2005-01-03~2015-12-31",
+    "cagr_pct": 9.73,
+    "final": 27754.0,
+    "max_drawdown_pct": 66.2,
+    "exposure_pct": 97.8,
+    "trades": 412,
+    "win_rate_pct": 50.7,
+    "avg_trade_pct": 4.08,
+    "median_trade_pct": 0.37,
+    "avg_vs_spy_pct": 2.46,
+    "vs_spy_t": 1.67,
+    "avg_hold_days": 65.7
+   }
+  },
+  "2016-2026": {
+   "spy_buy_and_hold": {
+    "period": "2016-01-04~2026-11-13",
+    "cagr_pct": 12.92,
+    "final": 37400.0,
+    "max_drawdown_pct": 34.1,
+    "exposure_pct": 100.0,
+    "trades": 0
+   },
+   "universe_equal_weight": {
+    "period": "2016-01-04~2026-11-13",
+    "cagr_pct": 10.96,
+    "final": 30927.0,
+    "max_drawdown_pct": 40.1,
+    "exposure_pct": 100.0,
+    "trades": 0
+   },
+   "trend_55_20": {
+    "period": "2016-01-04~2026-11-13",
+    "cagr_pct": 10.85,
+    "final": 30609.0,
+    "max_drawdown_pct": 34.6,
+    "exposure_pct": 93.4,
+    "trades": 722,
+    "win_rate_pct": 42.0,
+    "avg_trade_pct": 1.93,
+    "median_trade_pct": -1.53,
+    "avg_vs_spy_pct": 0.2,
+    "vs_spy_t": 0.35,
+    "avg_hold_days": 35.3
+   },
+   "dip_in_uptrend": {
+    "period": "2016-01-04~2026-11-13",
+    "cagr_pct": -10.02,
+    "final": 3177.0,
+    "max_drawdown_pct": 70.0,
+    "exposure_pct": 61.2,
+    "trades": 4236,
+    "win_rate_pct": 54.6,
+    "avg_trade_pct": -0.23,
+    "median_trade_pct": 0.21,
+    "avg_vs_spy_pct": -0.42,
+    "vs_spy_t": -6.59,
+    "avg_hold_days": 3.9
+   },
+   "volume_flat": {
+    "period": "2016-01-04~2026-11-13",
+    "cagr_pct": -0.88,
+    "final": 9086.0,
+    "max_drawdown_pct": 9.3,
+    "exposure_pct": 2.3,
+    "trades": 124,
+    "win_rate_pct": 43.5,
+    "avg_trade_pct": -0.76,
+    "median_trade_pct": -0.61,
+    "avg_vs_spy_pct": -0.84,
+    "vs_spy_t": -2.27,
+    "avg_hold_days": 5.0
+   },
+   "momentum_monthly": {
+    "period": "2016-01-04~2026-11-13",
+    "cagr_pct": 16.53,
+    "final": 52638.0,
+    "max_drawdown_pct": 71.2,
+    "exposure_pct": 98.2,
+    "trades": 348,
+    "win_rate_pct": 51.7,
+    "avg_trade_pct": 9.04,
+    "median_trade_pct": 1.24,
+    "avg_vs_spy_pct": 4.99,
+    "vs_spy_t": 1.96,
+    "avg_hold_days": 77.1
+   }
+  }
+ }
+}
