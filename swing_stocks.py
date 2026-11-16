@@ -83,16 +83,18 @@ def indicators(frame, calendar, names):
                         & (close >= (wide["high"] + wide["low"]) / 2), None, 5),
     }
     momentum = close.shift(21) / close.shift(252) - 1
-    return wide, signals, momentum
+    uptrend = (momentum > 0) & (close > sma200)
+    return wide, signals, momentum, uptrend
 
 
 def simulate(wide, calendar, spy, universe, start, end, entry, exit_signal, max_hold, *, slots=10,
-             momentum=None):
+             momentum=None, eligible=None, risk_on=None):
     opens, closes = wide["open"].to_numpy(), wide["close"].to_numpy()
     column = {symbol: j for j, symbol in enumerate(wide["close"].columns)}
     entry_values = entry.to_numpy() if entry is not None else None
     exit_values = exit_signal.to_numpy() if exit_signal is not None else None
     momentum_values = momentum.to_numpy() if momentum is not None else None
+    eligible_values = eligible.to_numpy() if eligible is not None else None
     spy_open = spy["open"].to_numpy()
     days = np.where((calendar >= np.datetime64(start)) & (calendar <= np.datetime64(end)))[0]
     month_starts = sorted(universe)
@@ -142,8 +144,12 @@ def simulate(wide, calendar, spy, universe, start, end, entry, exit_signal, max_
         if momentum_values is not None:
             if t in universe:
                 ranked = sorted(((momentum_values[t, column[s]], s) for s in members
-                                 if not np.isnan(momentum_values[t, column[s]])), reverse=True)[:slots]
+                                 if not np.isnan(momentum_values[t, column[s]])
+                                 and (eligible_values is None or bool(eligible_values[t, column[s]]))),
+                                reverse=True)[:slots]
                 target = [symbol for _, symbol in ranked]
+                if risk_on is not None and not risk_on[t]:
+                    target = []  # market below its 200-day average: cash this month
                 pending_sell |= {symbol for symbol in positions if symbol not in target}
                 pending_buy = [symbol for symbol in target if symbol not in positions]
             continue
@@ -201,6 +207,10 @@ def summary(curve, dates, trades, exposure):
               "cagr_pct": round(((curve[-1] / START_CASH) ** (1 / years) - 1) * 100, 2),
               "final": round(float(curve[-1]), 0), "max_drawdown_pct": round(float(np.max(1 - curve / peak)) * 100, 1),
               "exposure_pct": round(exposure * 100, 1), "trades": len(trades)}
+    years_index = pd.DatetimeIndex(dates).year
+    year_end = pd.Series(curve, index=years_index).groupby(level=0).last()
+    previous = year_end.shift(1).fillna(START_CASH)
+    result["yearly_pct"] = {int(year): round(float(value), 1) for year, value in ((year_end / previous - 1) * 100).items()}
     if trades:
         net = np.array([t[0] for t in trades]) * 100
         excess = np.array([t[1] for t in trades]) * 100
@@ -224,15 +234,19 @@ def run(folder):
     frame, calendar, spy = load(folder)
     universe = universes(frame, calendar)
     names = sorted({symbol for members in universe.values() for symbol in members})
-    wide, signals, momentum = indicators(frame, calendar, names)
+    wide, signals, momentum, uptrend = indicators(frame, calendar, names)
+    risk_on = (spy["close"] > spy["close"].rolling(200).mean()).to_numpy()
     results = {"universe_symbols_ever": len(names), "periods": {}}
     for start, end in PERIODS:
         block = {"spy_buy_and_hold": spy_hold(spy, calendar, start, end),
                  "universe_equal_weight": equal_weight(wide, calendar, universe, start, end)}
         for name, (entry, exit_signal, max_hold) in signals.items():
             block[name] = simulate(wide, calendar, spy, universe, start, end, entry, exit_signal, max_hold)
-        block["momentum_monthly"] = simulate(wide, calendar, spy, universe, start, end, None, None, None,
-                                             momentum=momentum)
+        for name, options in (("momentum_monthly", {}), ("momentum_market_filter", {"risk_on": risk_on}),
+                              ("momentum_stock_filter", {"eligible": uptrend}),
+                              ("momentum_both_filters", {"risk_on": risk_on, "eligible": uptrend})):
+            block[name] = simulate(wide, calendar, spy, universe, start, end, None, None, None,
+                                   momentum=momentum, **options)
         results["periods"][f"{start[:4]}-{end[:4]}"] = block
     return results
 
