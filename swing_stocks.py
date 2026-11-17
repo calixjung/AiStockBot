@@ -82,6 +82,11 @@ def indicators(frame, calendar, names):
                         & ((close / close.shift(1) - 1).abs() <= 0.005)
                         & (close >= (wide["high"] + wide["low"]) / 2), None, 5),
     }
+    day_range = wide["high"] - wide["low"]
+    signals["surge_follow"] = (
+        (close / close.shift(1) - 1 >= 0.05) & (volume >= 3 * volume.rolling(20).median().shift(1))
+        & (close >= wide["low"] + 0.75 * day_range) & (close > sma200),
+        close < close.rolling(50).mean(), 40)
     momentum = close.shift(21) / close.shift(252) - 1
     uptrend = (momentum > 0) & (close > sma200)
     return wide, signals, momentum, uptrend
@@ -243,6 +248,27 @@ def spy_hold(spy, calendar, start, end):
     return summary(curve, calendar[days], [], 1.0)
 
 
+def monthly_saving(spy, calendar, start, end, amount=500.0):
+    """Buy `amount` of SPY at the open after each month's first trading day; never sell."""
+    days = np.where((calendar >= np.datetime64(start)) & (calendar <= np.datetime64(end)))[0]
+    months = pd.DatetimeIndex(calendar).to_period("M")
+    opens, closes = spy["open"].to_numpy(), spy["close"].to_numpy()
+    shares = paid = 0.0
+    worst = 0.0
+    for position, t in enumerate(days[1:], start=1):
+        previous = days[position - 1]
+        if previous == days[0] or months[previous] != months[previous - 1]:
+            shares += amount / (opens[t] * BUY_COST)
+            paid += amount
+        if paid:
+            worst = min(worst, shares * closes[t] / paid - 1)
+    value = shares * closes[days[-1]]
+    return {"period": f"{str(calendar[days[0]])[:10]}~{str(calendar[days[-1]])[:10]}", "monthly_amount": amount,
+            "paid_in": round(paid, 0), "value": round(float(value), 0),
+            "gain_pct": round(float(value / paid - 1) * 100, 1),
+            "worst_vs_paid_in_pct": round(float(worst) * 100, 1)}
+
+
 def run(folder):
     frame, calendar, spy = load(folder)
     universe = universes(frame, calendar)
@@ -261,6 +287,8 @@ def run(folder):
             block[name] = simulate(wide, calendar, spy, universe, start, end, None, None, None,
                                    momentum=momentum, **options)
         results["periods"][f"{start[:4]}-{end[:4]}"] = block
+    results["spy_monthly_saving"] = [monthly_saving(spy, calendar, start, "2026-12-31")
+                                     for start in ("2005-01-01", "2016-01-01")]
     return results
 
 
