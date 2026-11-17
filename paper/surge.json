@@ -1,0 +1,27 @@
+{
+ "as_of": "2026-11-16",
+ "start_signal_day": "2026-11-16",
+ "run_on": "2026-11-17",
+ "equity": 10000.0,
+ "return_pct": 0.0,
+ "max_drawdown_pct": 0.0,
+ "cash": 10000.0,
+ "spy_equity": 10000.0,
+ "spy_return_pct": 0.0,
+ "universe_equal_weight_return_pct": 0.0,
+ "positions": [],
+ "closed_trades": [],
+ "orders_for_next_open": {
+  "sell": [],
+  "buy": []
+ },
+ "closed_trade_stats": {
+  "trades": 0,
+  "win_rate_pct": null,
+  "avg_trade_pct": null,
+  "avg_vs_spy_pct": null
+ },
+ "equity_curve": {
+  "2026-11-16": 10000.0
+ }
+}

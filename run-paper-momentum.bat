@@ -13,10 +13,11 @@ if errorlevel 1 (
   pause
   exit /b 1
 )
-git add paper\momentum.md paper\momentum.json
+git add paper\*.md paper\*.json
 git commit -m "Paper momentum update"
 git push origin main
 start "" "paper\momentum.md"
+start "" "paper\surge.md"
 pause
 exit /b 0
 
@@ -28,7 +29,7 @@ if errorlevel 1 (
   echo FAILED >> %LOG%
   exit /b 1
 )
-git add paper\momentum.md paper\momentum.json >> %LOG% 2>&1
+git add paper\*.md paper\*.json >> %LOG% 2>&1
 git commit -m "Paper momentum update (scheduled)" >> %LOG% 2>&1
 set GIT_TERMINAL_PROMPT=0
 git push origin main >> %LOG% 2>&1

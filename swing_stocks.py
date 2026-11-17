@@ -219,7 +219,7 @@ def equal_weight(wide, calendar, universe, start, end):
 
 def summary(curve, dates, trades, exposure):
     curve = np.array(curve)
-    years = (dates[-1] - dates[0]) / np.timedelta64(1, "D") / 365.25
+    years = max((dates[-1] - dates[0]) / np.timedelta64(1, "D"), 1.0) / 365.25
     peak = np.maximum.accumulate(curve)
     result = {"period": f"{str(dates[0])[:10]}~{str(dates[-1])[:10]}",
               "cagr_pct": round(((curve[-1] / START_CASH) ** (1 / years) - 1) * 100, 2),
